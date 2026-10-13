@@ -1,0 +1,12 @@
+/** Unit tests only — anything under test/e2e is run via test/jest-e2e.json */
+module.exports = {
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: '.',
+  testRegex: 'src/.*\\.spec\\.ts$',
+  transform: {
+    '^.+\\.(t|j)s$': 'ts-jest',
+  },
+  collectCoverageFrom: ['src/**/*.(t|j)s'],
+  coverageDirectory: './coverage',
+  testEnvironment: 'node',
+};
