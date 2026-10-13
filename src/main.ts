@@ -22,7 +22,9 @@ async function bootstrap(): Promise<void> {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('ShughuliFlow API')
-    .setDescription('Backend API for ShughuliFlow by SOLis Group — field activity, team tasks and operations automation')
+    .setDescription(
+      'Backend API for ShughuliFlow by SOLis Group — field activity, team tasks and operations automation',
+    )
     .setVersion('1.0')
     .addCookieAuth('access_token')
     .build();

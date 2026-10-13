@@ -13,7 +13,9 @@ export function buildPinoConfig(config: ConfigService): Params {
   return {
     pinoHttp: {
       level: isProd ? 'info' : 'debug',
-      transport: usePrettyPrint ? { target: 'pino-pretty', options: { singleLine: true } } : undefined,
+      transport: usePrettyPrint
+        ? { target: 'pino-pretty', options: { singleLine: true } }
+        : undefined,
       genReqId: (req) => (req.headers['x-request-id'] as string) ?? randomUUID(),
       redact: ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'],
     },

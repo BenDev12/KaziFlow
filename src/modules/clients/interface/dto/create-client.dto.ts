@@ -73,7 +73,8 @@ export class CreateClientDto {
 
   @ApiPropertyOptional({
     type: [ContactDto],
-    description: 'Named contacts at this office, for the activity log\'s "person spoken to" picker.',
+    description:
+      'Named contacts at this office, for the activity log\'s "person spoken to" picker.',
   })
   @IsOptional()
   @IsArray()

@@ -133,7 +133,8 @@ export class Client extends Entity<ClientProps> {
         phone: c.phone ?? null,
       }));
     }
-    if (patch.preferredVisitTime !== undefined) this.props.preferredVisitTime = patch.preferredVisitTime;
+    if (patch.preferredVisitTime !== undefined)
+      this.props.preferredVisitTime = patch.preferredVisitTime;
   }
 
   recordVisit(visitDate: Date, notes: string): void {

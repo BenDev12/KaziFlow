@@ -3,6 +3,19 @@ import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import request from 'supertest';
+import type {
+  EmailService,
+  SendInviteEmailInput,
+} from '../src/modules/iam/application/ports/email.port';
+
+/** Records invite emails instead of calling the real Resend API during tests. */
+class FakeEmailService implements EmailService {
+  public sent: SendInviteEmailInput[] = [];
+
+  async sendInviteEmail(input: SendInviteEmailInput): Promise<void> {
+    this.sent.push(input);
+  }
+}
 
 /**
  * Exercises the real signup -> onboarding -> client -> activity -> issue ->
@@ -13,6 +26,7 @@ import request from 'supertest';
 describe('Field Tracker API (e2e)', () => {
   let app: INestApplication;
   let mongod: MongoMemoryServer;
+  let fakeEmailService: FakeEmailService;
 
   beforeAll(async () => {
     mongod = await MongoMemoryServer.create();
@@ -24,6 +38,8 @@ describe('Field Tracker API (e2e)', () => {
     process.env.JWT_ACCESS_TTL = '15m';
     process.env.JWT_REFRESH_TTL = '7d';
     process.env.CORS_ORIGIN = 'http://localhost:3000';
+    process.env.RESEND_API_KEY = 'test-resend-key';
+    process.env.EMAIL_FROM = 'onboarding@resend.dev';
 
     // Dynamic imports, not static top-of-file ones: AppModule's `@Module({
     // imports: [ConfigModule.forRoot({ validate })] })` decorator evaluates
@@ -31,11 +47,15 @@ describe('Field Tracker API (e2e)', () => {
     // module is imported. A static import gets hoisted above this env setup
     // by the module loader, so validation would run against an empty env.
     const { AppModule } = await import('../src/app.module');
-    const { DomainExceptionFilter } = await import(
-      '../src/shared/infrastructure/filters/domain-exception.filter'
-    );
+    const { DomainExceptionFilter } =
+      await import('../src/shared/infrastructure/filters/domain-exception.filter');
+    const { EMAIL_SERVICE } = await import('../src/modules/iam/application/ports/email.port');
 
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    fakeEmailService = new FakeEmailService();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(EMAIL_SERVICE)
+      .useValue(fakeEmailService)
+      .compile();
     app = moduleRef.createNestApplication();
     app.use(cookieParser());
     app.useGlobalPipes(
@@ -193,5 +213,86 @@ describe('Field Tracker API (e2e)', () => {
 
   it('rejects unauthenticated access', async () => {
     await request(app.getHttpServer()).get('/v1/clients').expect(401);
+  });
+
+  it('invites a teammate, emails them, and lets them accept into the same org', async () => {
+    const { cookies: adminCookies, orgId } = await signupAndOnboard(
+      'invite-admin@example.com',
+      'InviteOrg',
+    );
+
+    const createRes = await request(app.getHttpServer())
+      .post('/v1/invites')
+      .set('Cookie', adminCookies)
+      .send({ email: 'new-agent@example.com', role: 'agent' })
+      .expect(201);
+    expect(createRes.body.status).toBe('pending');
+
+    // The real send path ran (through the fake), with a real accept link.
+    expect(fakeEmailService.sent).toHaveLength(1);
+    expect(fakeEmailService.sent[0].to).toBe('new-agent@example.com');
+    const acceptUrl = new URL(fakeEmailService.sent[0].acceptUrl);
+    const token = acceptUrl.searchParams.get('token');
+
+    const listRes = await request(app.getHttpServer())
+      .get('/v1/invites')
+      .set('Cookie', adminCookies)
+      .expect(200);
+    expect(listRes.body).toHaveLength(1);
+
+    const previewRes = await request(app.getHttpServer()).get(`/v1/invites/${token}`).expect(200);
+    expect(previewRes.body).toMatchObject({
+      email: 'new-agent@example.com',
+      role: 'agent',
+      orgName: 'InviteOrg',
+      status: 'pending',
+    });
+
+    const acceptRes = await request(app.getHttpServer())
+      .post(`/v1/invites/${token}/accept`)
+      .send({ name: 'New Agent', password: 'super-secret-1' })
+      .expect(200);
+    expect(acceptRes.body).toMatchObject({ orgId, orgName: 'InviteOrg', role: 'agent' });
+
+    const agentCookies = extractCookies(acceptRes);
+
+    // The accepted invitee landed in the SAME org, not a fresh one.
+    await request(app.getHttpServer()).get('/v1/clients').set('Cookie', agentCookies).expect(200);
+
+    // ...but with an agent's permissions, not the admin's.
+    await request(app.getHttpServer())
+      .post('/v1/invites')
+      .set('Cookie', agentCookies)
+      .send({ email: 'someone-else@example.com', role: 'agent' })
+      .expect(403);
+
+    // The same token can't be redeemed twice.
+    await request(app.getHttpServer())
+      .post(`/v1/invites/${token}/accept`)
+      .send({ name: 'Replay', password: 'super-secret-1' })
+      .expect(409);
+  });
+
+  it("never lets one organization see or revoke another organization's invites", async () => {
+    const orgA = await signupAndOnboard('invite-org-a@example.com', 'InviteOrgA');
+    const orgB = await signupAndOnboard('invite-org-b@example.com', 'InviteOrgB');
+
+    const inviteRes = await request(app.getHttpServer())
+      .post('/v1/invites')
+      .set('Cookie', orgA.cookies)
+      .send({ email: 'orga-invitee@example.com', role: 'agent' })
+      .expect(201);
+    const inviteId = inviteRes.body.id as string;
+
+    const orgBList = await request(app.getHttpServer())
+      .get('/v1/invites')
+      .set('Cookie', orgB.cookies)
+      .expect(200);
+    expect(orgBList.body).toHaveLength(0);
+
+    await request(app.getHttpServer())
+      .post(`/v1/invites/${inviteId}/revoke`)
+      .set('Cookie', orgB.cookies)
+      .expect(404);
   });
 });

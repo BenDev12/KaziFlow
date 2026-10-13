@@ -10,6 +10,10 @@ export const envSchema = z.object({
   JWT_REFRESH_TTL: z.string().default('7d'),
   COOKIE_DOMAIN: z.string().optional(),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
+
+  // Team invites are emailed via Resend (https://resend.com).
+  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
+  EMAIL_FROM: z.string().default('onboarding@resend.dev'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

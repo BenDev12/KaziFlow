@@ -1,7 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { UseCase } from '../../../../shared/application/use-case.interface';
-import { CallCycle, Client, ClientPriority, VisitTimeSlot } from '../../domain/entities/client.entity';
+import {
+  CallCycle,
+  Client,
+  ClientPriority,
+  VisitTimeSlot,
+} from '../../domain/entities/client.entity';
 import {
   CLIENT_REPOSITORY,
   ClientRepository,
