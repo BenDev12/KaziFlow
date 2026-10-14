@@ -9,6 +9,8 @@ import { Organization } from '../../domain/entities/organization.entity';
 import { OrganizationRepository } from '../../domain/repositories/organization.repository.port';
 import { User } from '../../domain/entities/user.entity';
 import { UserRepository } from '../../domain/repositories/user.repository.port';
+import { Department } from '../../../departments/domain/entities/department.entity';
+import { DepartmentRepository } from '../../../departments/domain/repositories/department.repository.port';
 import { SendInviteEmailInput, EmailService } from '../ports/email.port';
 import { CreateInviteUseCase } from './create-invite.use-case';
 
@@ -68,6 +70,10 @@ class FakeUserRepository implements UserRepository {
   async save(user: User): Promise<User> {
     return user;
   }
+
+  async countInDepartment(departmentId: string): Promise<number> {
+    return this.users.filter((user) => user.departmentId === departmentId).length;
+  }
 }
 
 class FakeOrganizationRepository implements OrganizationRepository {
@@ -79,6 +85,38 @@ class FakeOrganizationRepository implements OrganizationRepository {
 
   async create(org: Organization): Promise<Organization> {
     return org;
+  }
+}
+
+class FakeDepartmentRepository implements DepartmentRepository {
+  constructor(private readonly departments: Department[] = []) {}
+
+  async findById(id: string): Promise<Department | null> {
+    return this.departments.find((d) => d.id === id) ?? null;
+  }
+
+  async findByIdUnscoped(id: string): Promise<Department | null> {
+    return this.findById(id);
+  }
+
+  async findByName(name: string): Promise<Department | null> {
+    return this.departments.find((d) => d.name.toLowerCase() === name.toLowerCase()) ?? null;
+  }
+
+  async findAll(): Promise<Department[]> {
+    return this.departments;
+  }
+
+  async create(department: Department): Promise<Department> {
+    this.departments.push(department);
+    return department;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const index = this.departments.findIndex((d) => d.id === id);
+    if (index === -1) return false;
+    this.departments.splice(index, 1);
+    return true;
   }
 }
 
@@ -98,16 +136,22 @@ describe('CreateInviteUseCase', () => {
     'org-1',
   );
 
-  function build(opts?: { shouldFail?: boolean }) {
+  function build(opts?: { shouldFail?: boolean; departments?: Department[] }) {
     const invites = new FakeInviteRepository();
     const users = new FakeUserRepository();
     const organizations = new FakeOrganizationRepository(org);
+    const departments = new FakeDepartmentRepository(opts?.departments ?? []);
     const emailService = new FakeEmailService();
     emailService.shouldFail = opts?.shouldFail ?? false;
-    const useCase = new CreateInviteUseCase(invites, users, organizations, emailService, {
-      get: () => 'http://localhost:3000',
-    } as never);
-    return { invites, users, organizations, emailService, useCase };
+    const useCase = new CreateInviteUseCase(
+      invites,
+      users,
+      organizations,
+      departments,
+      emailService,
+      { get: () => 'http://localhost:3000' } as never,
+    );
+    return { invites, users, organizations, departments, emailService, useCase };
   }
 
   it('creates a pending invite and emails it', async () => {
@@ -217,5 +261,39 @@ describe('CreateInviteUseCase', () => {
 
     const pending = await invites.findPendingByOrgAndEmail('org-1', 'undeliverable@example.com');
     expect(pending).toBeNull(); // not stuck — a retry must be possible
+  });
+
+  it('stores the department on the invite when one is given', async () => {
+    const sales = Department.create({ orgId: 'org-1', name: 'Sales' }, 'dept-sales');
+    const { useCase } = build({ departments: [sales] });
+
+    const invite = await useCase.execute({
+      orgId: 'org-1',
+      invitedByUserId: 'u-1',
+      invitedByName: 'Jane Admin',
+      invitedByRole: 'org_admin',
+      email: 'sales-agent@example.com',
+      role: 'agent',
+      departmentId: 'dept-sales',
+    });
+
+    expect(invite.departmentId).toBe('dept-sales');
+  });
+
+  it('rejects a department id that does not belong to this org', async () => {
+    const foreignDept = Department.create({ orgId: 'org-2', name: 'Sales' }, 'dept-foreign');
+    const { useCase } = build({ departments: [foreignDept] });
+
+    await expect(
+      useCase.execute({
+        orgId: 'org-1',
+        invitedByUserId: 'u-1',
+        invitedByName: 'Jane Admin',
+        invitedByRole: 'org_admin',
+        email: 'x2@example.com',
+        role: 'agent',
+        departmentId: 'dept-foreign',
+      }),
+    ).rejects.toThrow(NotFoundError);
   });
 });

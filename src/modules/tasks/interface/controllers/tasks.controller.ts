@@ -30,6 +30,7 @@ function toResponse(task: Task) {
     clientName: task.clientName,
     agentId: task.agentId,
     agentName: task.agentName,
+    departmentId: task.departmentId,
     description: task.description,
     dueDate: task.dueDate,
     activityLogId: task.activityLogId,
@@ -57,6 +58,7 @@ export class TasksController {
       ...dto,
       agentId: user.sub,
       agentName: user.name,
+      departmentId: user.departmentId,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
     });
     return toResponse(task);
@@ -64,8 +66,12 @@ export class TasksController {
 
   @Roles('org_admin', 'manager')
   @Get()
-  async list(@Query() query: ListTasksQueryDto) {
-    const tasks = await this.listTasksUseCase.execute(query);
+  async list(@CurrentUser() user: JwtPayload, @Query() query: ListTasksQueryDto) {
+    const tasks = await this.listTasksUseCase.execute({
+      ...query,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
+    });
     return tasks.map(toResponse);
   }
 

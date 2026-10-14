@@ -8,6 +8,7 @@ export interface TokenClaims {
   role: UserRole;
   email: string;
   name: string;
+  departmentId: string | null;
 }
 
 export interface TokenPair {

@@ -12,4 +12,6 @@ export interface UserRepository {
   findById(id: string): Promise<User | null>;
   create(user: User): Promise<User>;
   save(user: User): Promise<User>;
+  /** Used to block deleting a department that still has members assigned. */
+  countInDepartment(departmentId: string): Promise<number>;
 }

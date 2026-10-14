@@ -25,6 +25,11 @@ class FakeUserRepository implements UserRepository {
     this.usersByEmail.set(user.email, user);
     return user;
   }
+
+  async countInDepartment(departmentId: string): Promise<number> {
+    return [...this.usersByEmail.values()].filter((user) => user.departmentId === departmentId)
+      .length;
+  }
 }
 
 class FakePasswordHasher implements PasswordHasher {

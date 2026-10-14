@@ -24,6 +24,8 @@ export interface FlagProps {
   clientName: string;
   agentId: string;
   agentName: string;
+  /** The creating agent's department at the time — see shared/application/department-scope.ts. */
+  departmentId: string | null;
   flagType: FlagType;
   status: FlagStatus;
   visitNote: string;
@@ -46,6 +48,7 @@ export class Flag extends AggregateRoot<FlagProps> {
       clientName: string;
       agentId: string;
       agentName: string;
+      departmentId: string | null;
       flagType: FlagType;
       visitNote: string;
       personSpokenTo: string;
@@ -108,6 +111,10 @@ export class Flag extends AggregateRoot<FlagProps> {
 
   get agentName(): string {
     return this.props.agentName;
+  }
+
+  get departmentId(): string | null {
+    return this.props.departmentId;
   }
 
   get flagType(): FlagType {

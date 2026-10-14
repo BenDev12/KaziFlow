@@ -12,8 +12,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../../../../shared/interface/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../../shared/interface/guards/jwt-auth.guard';
 import { RequireOrgGuard } from '../../../../shared/interface/guards/require-org.guard';
+import { JwtPayload } from '../../../../shared/infrastructure/tenancy/jwt-payload.interface';
 import { Client } from '../../domain/entities/client.entity';
 import { CreateClientUseCase } from '../../application/use-cases/create-client.use-case';
 import { DeleteClientUseCase } from '../../application/use-cases/delete-client.use-case';
@@ -35,6 +37,7 @@ function toResponse(client: Client, overdue?: boolean) {
     phone: client.phone,
     callCycle: client.callCycle,
     address: client.address,
+    departmentId: client.departmentId,
     industry: client.industry,
     priority: client.priority,
     lastVisit: client.lastVisit,
@@ -59,32 +62,56 @@ export class ClientsController {
   ) {}
 
   @Post()
-  async create(@Body() dto: CreateClientDto) {
-    const client = await this.createClientUseCase.execute(dto);
+  async create(@CurrentUser() user: JwtPayload, @Body() dto: CreateClientDto) {
+    const client = await this.createClientUseCase.execute({
+      ...dto,
+      departmentId: user.departmentId,
+    });
     return toResponse(client);
   }
 
   @Get()
-  async list(@Query() query: ListClientsQueryDto) {
-    const items: ClientListItem[] = await this.listClientsUseCase.execute(query);
+  async list(@CurrentUser() user: JwtPayload, @Query() query: ListClientsQueryDto) {
+    const items: ClientListItem[] = await this.listClientsUseCase.execute({
+      ...query,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
+    });
     return items.map(({ client, overdue }) => toResponse(client, overdue));
   }
 
   @Get(':id')
-  async get(@Param('id') id: string) {
-    const client = await this.getClientUseCase.execute({ clientId: id });
+  async get(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    const client = await this.getClientUseCase.execute({
+      clientId: id,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
+    });
     return toResponse(client);
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateClientDto) {
-    const client = await this.updateClientUseCase.execute({ clientId: id, patch: dto });
+  async update(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdateClientDto,
+  ) {
+    const client = await this.updateClientUseCase.execute({
+      clientId: id,
+      patch: dto,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
+    });
     return toResponse(client);
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
-  async delete(@Param('id') id: string) {
-    await this.deleteClientUseCase.execute({ clientId: id });
+  async delete(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    await this.deleteClientUseCase.execute({
+      clientId: id,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
+    });
   }
 }

@@ -8,6 +8,7 @@ export interface TenantStore {
   userId: string;
   role: UserRole;
   email: string;
+  departmentId: string | null;
 }
 
 /**

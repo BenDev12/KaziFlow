@@ -5,6 +5,8 @@ export const TASK_REPOSITORY = Symbol('TASK_REPOSITORY');
 export interface TaskListFilter {
   status?: TaskStatus;
   clientId?: string;
+  /** Set by the use-case from the requester's role — see department-scope.ts. Not a public query param. */
+  departmentId?: string;
 }
 
 export interface TaskRepository {

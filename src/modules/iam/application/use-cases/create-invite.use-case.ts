@@ -8,6 +8,10 @@ import {
   NotFoundError,
 } from '../../../../shared/domain/errors/domain-error';
 import { UserRole } from '../../../../shared/infrastructure/tenancy/tenant-context';
+import {
+  DEPARTMENT_REPOSITORY,
+  DepartmentRepository,
+} from '../../../departments/domain/repositories/department.repository.port';
 import { Invite } from '../../domain/entities/invite.entity';
 import {
   ORGANIZATION_REPOSITORY,
@@ -28,6 +32,8 @@ export interface CreateInviteInput {
   invitedByRole: UserRole;
   email: string;
   role: UserRole;
+  /** Leave unset for org-wide visibility — see shared/application/department-scope.ts. */
+  departmentId?: string;
 }
 
 @Injectable()
@@ -36,6 +42,7 @@ export class CreateInviteUseCase implements UseCase<CreateInviteInput, Invite> {
     @Inject(INVITE_REPOSITORY) private readonly invites: InviteRepository,
     @Inject(USER_REPOSITORY) private readonly users: UserRepository,
     @Inject(ORGANIZATION_REPOSITORY) private readonly organizations: OrganizationRepository,
+    @Inject(DEPARTMENT_REPOSITORY) private readonly departments: DepartmentRepository,
     @Inject(EMAIL_SERVICE) private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
@@ -48,6 +55,15 @@ export class CreateInviteUseCase implements UseCase<CreateInviteInput, Invite> {
 
     const org = await this.organizations.findById(input.orgId);
     if (!org) throw new NotFoundError('Organization', input.orgId);
+
+    let departmentId: string | null = null;
+    if (input.departmentId) {
+      const department = await this.departments.findById(input.departmentId);
+      if (!department || department.orgId !== input.orgId) {
+        throw new NotFoundError('Department', input.departmentId);
+      }
+      departmentId = department.id;
+    }
 
     const existingUser = await this.users.findByEmail(input.email);
     if (existingUser) {
@@ -65,6 +81,7 @@ export class CreateInviteUseCase implements UseCase<CreateInviteInput, Invite> {
         orgId: input.orgId,
         email: input.email,
         role: input.role,
+        departmentId,
         token,
         invitedByUserId: input.invitedByUserId,
         invitedByName: input.invitedByName,

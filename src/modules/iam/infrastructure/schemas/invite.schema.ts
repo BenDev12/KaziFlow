@@ -19,6 +19,9 @@ export class InviteDocument extends Document<string> {
   @Prop({ required: true, enum: ['org_admin', 'manager', 'agent'] })
   role!: UserRole;
 
+  @Prop({ type: String, default: null })
+  departmentId!: string | null;
+
   @Prop({ required: true, unique: true })
   token!: string;
 

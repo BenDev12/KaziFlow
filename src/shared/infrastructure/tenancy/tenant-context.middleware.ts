@@ -38,7 +38,13 @@ export class TenantContextMiddleware implements NestMiddleware {
       });
       req.user = payload;
       TenantContext.run(
-        { orgId: payload.orgId, userId: payload.sub, role: payload.role, email: payload.email },
+        {
+          orgId: payload.orgId,
+          userId: payload.sub,
+          role: payload.role,
+          email: payload.email,
+          departmentId: payload.departmentId,
+        },
         next,
       );
     } catch {

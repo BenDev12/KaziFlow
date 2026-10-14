@@ -28,6 +28,9 @@ export class UserDocument extends Document<string> {
   @Prop({ type: String, default: null })
   orgId!: string | null;
 
+  @Prop({ type: String, default: null })
+  departmentId!: string | null;
+
   createdAt!: Date;
   updatedAt!: Date;
 }
@@ -35,3 +38,4 @@ export class UserDocument extends Document<string> {
 export const UserSchema = SchemaFactory.createForClass(UserDocument);
 // email's unique index comes from the @Prop({ unique: true }) above.
 UserSchema.index({ orgId: 1 });
+UserSchema.index({ departmentId: 1 });

@@ -24,6 +24,12 @@ export class IssueMongoRepository
     const query: FilterQuery<IssueDocument> = {};
     if (filter.status) query.status = filter.status;
     if (filter.clientId) query.clientId = filter.clientId;
+    if (filter.departmentId) {
+      // Records with no department (created before departments existed, or
+      // by an unassigned member) stay visible to everyone — only a record
+      // explicitly tagged with a DIFFERENT department is hidden.
+      query.$or = [{ departmentId: filter.departmentId }, { departmentId: null }];
+    }
     const docs = await this.findManyScoped(query, { createdAt: -1 });
     return docs.map((doc) => this.toDomain(doc));
   }
@@ -35,6 +41,7 @@ export class IssueMongoRepository
       clientName: issue.clientName,
       agentId: issue.agentId,
       agentName: issue.agentName,
+      departmentId: issue.departmentId,
       description: issue.description,
       visitNote: issue.visitNote,
       activityLogId: issue.activityLogId,
@@ -69,6 +76,7 @@ export class IssueMongoRepository
         clientName: doc.clientName,
         agentId: doc.agentId,
         agentName: doc.agentName,
+        departmentId: doc.departmentId,
         description: doc.description,
         visitNote: doc.visitNote,
         activityLogId: doc.activityLogId,

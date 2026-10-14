@@ -26,6 +26,9 @@ export class IssueDocument extends Document<string> {
   @Prop({ required: true, trim: true })
   agentName!: string;
 
+  @Prop({ type: String, default: null })
+  departmentId!: string | null;
+
   @Prop({ required: true, trim: true })
   description!: string;
 
@@ -57,3 +60,4 @@ export class IssueDocument extends Document<string> {
 export const IssueSchema = SchemaFactory.createForClass(IssueDocument);
 IssueSchema.index({ orgId: 1, status: 1 });
 IssueSchema.index({ orgId: 1, clientId: 1 });
+IssueSchema.index({ orgId: 1, departmentId: 1 });

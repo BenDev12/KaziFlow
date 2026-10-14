@@ -6,6 +6,7 @@ import { HealthModule } from './health/health.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { ClientsModule } from './modules/clients/clients.module';
+import { DepartmentsModule } from './modules/departments/departments.module';
 import { FlagsModule } from './modules/flags/flags.module';
 import { IamModule } from './modules/iam/iam.module';
 import { IssuesModule } from './modules/issues/issues.module';
@@ -25,6 +26,7 @@ import { TenantContextMiddleware } from './shared/infrastructure/tenancy/tenant-
     TenancyModule,
     HealthModule,
     IamModule,
+    DepartmentsModule,
     ClientsModule,
     ActivitiesModule,
     IssuesModule,

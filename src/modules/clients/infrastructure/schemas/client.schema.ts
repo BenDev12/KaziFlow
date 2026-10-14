@@ -51,6 +51,9 @@ export class ClientDocument extends Document<string> {
   address!: string;
 
   @Prop({ type: String, default: null })
+  departmentId!: string | null;
+
+  @Prop({ type: String, default: null })
   industry!: string | null;
 
   @Prop({ type: String, enum: ['hot', 'warm', 'cold'], default: null })
@@ -79,3 +82,4 @@ export const ClientSchema = SchemaFactory.createForClass(ClientDocument);
 ClientSchema.index({ orgId: 1, name: 1 });
 ClientSchema.index({ orgId: 1, priority: 1 });
 ClientSchema.index({ orgId: 1, callCycle: 1 });
+ClientSchema.index({ orgId: 1, departmentId: 1 });

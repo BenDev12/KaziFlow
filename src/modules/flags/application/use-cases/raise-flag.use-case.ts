@@ -13,6 +13,7 @@ export interface RaiseFlagInput {
   clientId: string;
   agentId: string;
   agentName: string;
+  departmentId: string | null;
   flagType: FlagType;
   visitNote: string;
   personSpokenTo: string;

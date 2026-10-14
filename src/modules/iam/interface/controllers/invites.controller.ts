@@ -33,6 +33,7 @@ function toResponse(invite: Invite) {
     id: invite.id,
     email: invite.email,
     role: invite.role,
+    departmentId: invite.departmentId,
     status: invite.status,
     invitedByName: invite.invitedByName,
     expiresAt: invite.expiresAt,
@@ -70,6 +71,7 @@ export class InvitesController {
       invitedByRole: user.role,
       email: dto.email,
       role: dto.role,
+      departmentId: dto.departmentId,
     });
     return toResponse(invite);
   }

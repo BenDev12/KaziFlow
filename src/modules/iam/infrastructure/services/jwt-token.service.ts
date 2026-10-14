@@ -18,6 +18,7 @@ export class JwtTokenService implements TokenService {
       role: claims.role,
       email: claims.email,
       name: claims.name,
+      departmentId: claims.departmentId,
     };
 
     const accessToken = this.jwtService.sign(payload, {
@@ -43,6 +44,7 @@ export class JwtTokenService implements TokenService {
       role: payload.role,
       email: payload.email,
       name: payload.name,
+      departmentId: payload.departmentId,
     };
   }
 }

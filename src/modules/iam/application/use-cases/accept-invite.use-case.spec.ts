@@ -65,6 +65,10 @@ class FakeUserRepository implements UserRepository {
   async save(user: User): Promise<User> {
     return user;
   }
+
+  async countInDepartment(departmentId: string): Promise<number> {
+    return this.users.filter((user) => user.departmentId === departmentId).length;
+  }
 }
 
 class FakeOrganizationRepository implements OrganizationRepository {
@@ -111,6 +115,7 @@ describe('AcceptInviteUseCase', () => {
         orgId: 'org-1',
         email: 'invitee@example.com',
         role: 'agent',
+        departmentId: null,
         token: 'tok-123',
         invitedByUserId: 'u-admin',
         invitedByName: 'Jane Admin',
@@ -151,6 +156,15 @@ describe('AcceptInviteUseCase', () => {
     const created = await userRepo.findByEmail('invitee@example.com');
     expect(created?.role).toBe('agent');
     expect(created?.orgId).toBe('org-1');
+  });
+
+  it("assigns the invite's department to the new user", async () => {
+    const { useCase, userRepo } = build([pendingInvite({ departmentId: 'dept-sales' })]);
+
+    await useCase.execute({ token: 'tok-123', name: 'New Agent', password: 'super-secret-1' });
+
+    const created = await userRepo.findByEmail('invitee@example.com');
+    expect(created?.departmentId).toBe('dept-sales');
   });
 
   it('rejects an unknown token', async () => {

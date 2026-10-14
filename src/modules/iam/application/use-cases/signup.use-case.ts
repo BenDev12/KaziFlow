@@ -49,6 +49,7 @@ export class SignupUseCase implements UseCase<SignupInput, SignupOutput> {
       role: saved.role,
       email: saved.email,
       name: saved.name,
+      departmentId: saved.departmentId,
     });
 
     return {

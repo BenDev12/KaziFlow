@@ -8,6 +8,7 @@ export interface UserProps {
   passwordHash: string;
   role: UserRole;
   orgId: string | null;
+  departmentId: string | null;
 }
 
 export class User extends Entity<UserProps> {
@@ -19,7 +20,9 @@ export class User extends Entity<UserProps> {
    * Self-service signup: the account that signs up this way always becomes
    * org_admin, because only an org_admin can run the onboarding step that
    * creates the organization in the first place. Everyone else joins an
-   * existing org via `registerFromInvite`.
+   * existing org via `registerFromInvite`. org_admin is never
+   * department-scoped (it always sees the whole org — see
+   * shared/application/department-scope.ts), so it has no department.
    */
   static register(props: { email: string; name: string; passwordHash: string }, id: string): User {
     if (!props.name.trim()) throw new ValidationError('Name is required');
@@ -30,14 +33,22 @@ export class User extends Entity<UserProps> {
         passwordHash: props.passwordHash,
         role: 'org_admin',
         orgId: null,
+        departmentId: null,
       },
       id,
     );
   }
 
-  /** Accepting an invite: role and org are fixed by the invite, not self-selected. */
+  /** Accepting an invite: role, org and department are fixed by the invite, not self-selected. */
   static registerFromInvite(
-    props: { email: string; name: string; passwordHash: string; role: UserRole; orgId: string },
+    props: {
+      email: string;
+      name: string;
+      passwordHash: string;
+      role: UserRole;
+      orgId: string;
+      departmentId: string | null;
+    },
     id: string,
   ): User {
     if (!props.name.trim()) throw new ValidationError('Name is required');
@@ -48,6 +59,7 @@ export class User extends Entity<UserProps> {
         passwordHash: props.passwordHash,
         role: props.role,
         orgId: props.orgId,
+        departmentId: props.departmentId,
       },
       id,
     );
@@ -59,6 +71,10 @@ export class User extends Entity<UserProps> {
 
   attachToOrganization(orgId: string): void {
     this.props.orgId = orgId;
+  }
+
+  assignDepartment(departmentId: string | null): void {
+    this.props.departmentId = departmentId;
   }
 
   updateName(name: string): void {
@@ -84,5 +100,9 @@ export class User extends Entity<UserProps> {
 
   get orgId(): string | null {
     return this.props.orgId;
+  }
+
+  get departmentId(): string | null {
+    return this.props.departmentId;
   }
 }

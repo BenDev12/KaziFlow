@@ -16,7 +16,13 @@ export interface LoginInput {
 
 export interface LoginOutput {
   orgSetupComplete: boolean;
-  user: { email: string; name: string; role: string; orgName: string | null };
+  user: {
+    email: string;
+    name: string;
+    role: string;
+    orgName: string | null;
+    departmentId: string | null;
+  };
   tokens: TokenPair;
 }
 
@@ -46,11 +52,18 @@ export class LoginUseCase implements UseCase<LoginInput, LoginOutput> {
       role: user.role,
       email: user.email,
       name: user.name,
+      departmentId: user.departmentId,
     });
 
     return {
       orgSetupComplete: org?.setupComplete ?? false,
-      user: { email: user.email, name: user.name, role: user.role, orgName: org?.name ?? null },
+      user: {
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        orgName: org?.name ?? null,
+        departmentId: user.departmentId,
+      },
       tokens,
     };
   }

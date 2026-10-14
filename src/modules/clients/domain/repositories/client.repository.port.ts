@@ -6,6 +6,8 @@ export interface ClientListFilter {
   priority?: ClientPriority;
   callCycle?: CallCycle;
   search?: string;
+  /** Set by the use-case from the requester's role — see department-scope.ts. Not a public query param. */
+  departmentId?: string;
 }
 
 export interface ClientRepository {

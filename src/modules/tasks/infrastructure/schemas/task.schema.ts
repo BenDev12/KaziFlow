@@ -26,6 +26,9 @@ export class TaskDocument extends Document<string> {
   @Prop({ required: true, trim: true })
   agentName!: string;
 
+  @Prop({ type: String, default: null })
+  departmentId!: string | null;
+
   @Prop({ required: true, trim: true })
   description!: string;
 
@@ -54,3 +57,4 @@ export class TaskDocument extends Document<string> {
 export const TaskSchema = SchemaFactory.createForClass(TaskDocument);
 TaskSchema.index({ orgId: 1, status: 1 });
 TaskSchema.index({ orgId: 1, clientId: 1 });
+TaskSchema.index({ orgId: 1, departmentId: 1 });

@@ -9,6 +9,8 @@ export interface TaskProps {
   clientName: string;
   agentId: string;
   agentName: string;
+  /** The creating agent's department at the time — see shared/application/department-scope.ts. */
+  departmentId: string | null;
   description: string;
   dueDate: Date | null;
   activityLogId: string;
@@ -29,6 +31,7 @@ export class Task extends AggregateRoot<TaskProps> {
       clientName: string;
       agentId: string;
       agentName: string;
+      departmentId: string | null;
       description: string;
       dueDate?: Date | null;
       activityLogId: string;
@@ -84,6 +87,10 @@ export class Task extends AggregateRoot<TaskProps> {
 
   get agentName(): string {
     return this.props.agentName;
+  }
+
+  get departmentId(): string | null {
+    return this.props.departmentId;
   }
 
   get description(): string {

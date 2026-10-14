@@ -9,6 +9,8 @@ export interface IssueProps {
   clientName: string;
   agentId: string;
   agentName: string;
+  /** The creating agent's department at the time — see shared/application/department-scope.ts. */
+  departmentId: string | null;
   description: string;
   visitNote: string;
   activityLogId: string;
@@ -30,6 +32,7 @@ export class Issue extends AggregateRoot<IssueProps> {
       clientName: string;
       agentId: string;
       agentName: string;
+      departmentId: string | null;
       description: string;
       visitNote: string;
       activityLogId: string;
@@ -87,6 +90,10 @@ export class Issue extends AggregateRoot<IssueProps> {
 
   get agentName(): string {
     return this.props.agentName;
+  }
+
+  get departmentId(): string | null {
+    return this.props.departmentId;
   }
 
   get description(): string {

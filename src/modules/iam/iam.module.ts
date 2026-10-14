@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { DepartmentsModule } from '../departments/departments.module';
 import { ORGANIZATION_REPOSITORY } from './domain/repositories/organization.repository.port';
 import { USER_REPOSITORY } from './domain/repositories/user.repository.port';
 import { INVITE_REPOSITORY } from './domain/repositories/invite.repository.port';
@@ -39,6 +40,10 @@ import { OrganizationController } from './interface/controllers/organization.con
       { name: UserDocument.name, schema: UserSchema },
       { name: InviteDocument.name, schema: InviteSchema },
     ]),
+    // Invites reference a department; DepartmentsModule in turn needs
+    // USER_REPOSITORY (to block deleting a department with members still
+    // in it) — a genuine mutual reference, not a layering mistake.
+    forwardRef(() => DepartmentsModule),
   ],
   controllers: [AuthController, OrganizationController, InvitesController],
   providers: [

@@ -295,4 +295,158 @@ describe('Field Tracker API (e2e)', () => {
       .set('Cookie', orgB.cookies)
       .expect(404);
   });
+
+  /**
+   * Mirrors how a real invitee gets from "email sent" to "logged in" —
+   * including opening the preview link first, same as a real browser would
+   * (and unlike accept, that GET runs with zero cookies: no tenant context
+   * at all, which is exactly what tripped up the department-name lookup).
+   */
+  async function acceptLatestInvite(name: string, password = 'super-secret-1') {
+    const acceptUrl = fakeEmailService.sent.at(-1)!.acceptUrl;
+    const token = new URL(acceptUrl).searchParams.get('token');
+    await request(app.getHttpServer()).get(`/v1/invites/${token}`).expect(200);
+    const res = await request(app.getHttpServer())
+      .post(`/v1/invites/${token}/accept`)
+      .send({ name, password })
+      .expect(200);
+    return extractCookies(res);
+  }
+
+  it('scopes manager visibility to their own department, admin sees everything, and unassigned records stay shared', async () => {
+    const admin = await signupAndOnboard('dept-admin@example.com', 'DeptCo');
+
+    const salesRes = await request(app.getHttpServer())
+      .post('/v1/departments')
+      .set('Cookie', admin.cookies)
+      .send({ name: 'Sales' })
+      .expect(201);
+    const salesId = salesRes.body.id as string;
+
+    const financeRes = await request(app.getHttpServer())
+      .post('/v1/departments')
+      .set('Cookie', admin.cookies)
+      .send({ name: 'Finance' })
+      .expect(201);
+    const financeId = financeRes.body.id as string;
+
+    await request(app.getHttpServer())
+      .post('/v1/invites')
+      .set('Cookie', admin.cookies)
+      .send({ email: 'sales-mgr@example.com', role: 'manager', departmentId: salesId })
+      .expect(201);
+    // The public preview (no auth at all) must resolve the department name
+    // without blowing up — this is what originally broke (see
+    // get-invite-by-token.use-case.ts's findByIdUnscoped).
+    const previewUrl = new URL(fakeEmailService.sent.at(-1)!.acceptUrl);
+    const previewToken = previewUrl.searchParams.get('token');
+    const previewRes = await request(app.getHttpServer())
+      .get(`/v1/invites/${previewToken}`)
+      .expect(200);
+    expect(previewRes.body.departmentName).toBe('Sales');
+
+    const salesCookies = await acceptLatestInvite('Sales Manager');
+
+    await request(app.getHttpServer())
+      .post('/v1/invites')
+      .set('Cookie', admin.cookies)
+      .send({ email: 'finance-mgr@example.com', role: 'manager', departmentId: financeId })
+      .expect(201);
+    const financeCookies = await acceptLatestInvite('Finance Manager');
+
+    const salesClientRes = await request(app.getHttpServer())
+      .post('/v1/clients')
+      .set('Cookie', salesCookies)
+      .send({ name: 'Sales Client', contact: 'A', phone: '1', callCycle: 'Weekly', address: 'x' })
+      .expect(201);
+    expect(salesClientRes.body.departmentId).toBe(salesId);
+    const salesClientId = salesClientRes.body.id as string;
+
+    const financeClientRes = await request(app.getHttpServer())
+      .post('/v1/clients')
+      .set('Cookie', financeCookies)
+      .send({ name: 'Finance Client', contact: 'B', phone: '2', callCycle: 'Weekly', address: 'y' })
+      .expect(201);
+    const financeClientId = financeClientRes.body.id as string;
+
+    const salesList = await request(app.getHttpServer())
+      .get('/v1/clients')
+      .set('Cookie', salesCookies)
+      .expect(200);
+    expect(salesList.body.map((c: { id: string }) => c.id)).toEqual([salesClientId]);
+
+    const financeList = await request(app.getHttpServer())
+      .get('/v1/clients')
+      .set('Cookie', financeCookies)
+      .expect(200);
+    expect(financeList.body.map((c: { id: string }) => c.id)).toEqual([financeClientId]);
+
+    const adminList = await request(app.getHttpServer())
+      .get('/v1/clients')
+      .set('Cookie', admin.cookies)
+      .expect(200);
+    expect(adminList.body).toHaveLength(2);
+
+    // A manager can't fetch the other department's client by id either —
+    // the list boundary isn't just cosmetic.
+    await request(app.getHttpServer())
+      .get(`/v1/clients/${financeClientId}`)
+      .set('Cookie', salesCookies)
+      .expect(404);
+
+    // A client with no department (created by the admin, who is never
+    // department-scoped) stays visible to every department.
+    const sharedClientRes = await request(app.getHttpServer())
+      .post('/v1/clients')
+      .set('Cookie', admin.cookies)
+      .send({ name: 'Shared Client', contact: 'C', phone: '3', callCycle: 'Weekly', address: 'z' })
+      .expect(201);
+    expect(sharedClientRes.body.departmentId).toBeNull();
+
+    const salesListAfterShared = await request(app.getHttpServer())
+      .get('/v1/clients')
+      .set('Cookie', salesCookies)
+      .expect(200);
+    expect(salesListAfterShared.body.map((c: { id: string }) => c.id).sort()).toEqual(
+      [salesClientId, sharedClientRes.body.id].sort(),
+    );
+  });
+
+  it('restricts department management to org_admin and blocks deleting an occupied department', async () => {
+    const admin = await signupAndOnboard('dept-admin2@example.com', 'DeptCo2');
+
+    const deptRes = await request(app.getHttpServer())
+      .post('/v1/departments')
+      .set('Cookie', admin.cookies)
+      .send({ name: 'Ops' })
+      .expect(201);
+    const deptId = deptRes.body.id as string;
+
+    await request(app.getHttpServer())
+      .post('/v1/invites')
+      .set('Cookie', admin.cookies)
+      .send({ email: 'ops-agent@example.com', role: 'agent', departmentId: deptId })
+      .expect(201);
+    const agentCookies = await acceptLatestInvite('Ops Agent');
+
+    // Only org_admin manages departments.
+    await request(app.getHttpServer())
+      .post('/v1/departments')
+      .set('Cookie', agentCookies)
+      .send({ name: 'Rogue Dept' })
+      .expect(403);
+
+    // Can't delete a department while someone is still assigned to it.
+    await request(app.getHttpServer())
+      .delete(`/v1/departments/${deptId}`)
+      .set('Cookie', admin.cookies)
+      .expect(409);
+
+    // Listing is open to every onboarded member, not just admins.
+    const listRes = await request(app.getHttpServer())
+      .get('/v1/departments')
+      .set('Cookie', agentCookies)
+      .expect(200);
+    expect(listRes.body.map((d: { name: string }) => d.name)).toContain('Ops');
+  });
 });

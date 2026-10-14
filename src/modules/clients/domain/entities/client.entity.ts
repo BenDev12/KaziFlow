@@ -31,6 +31,8 @@ export interface ClientProps {
   phone: string;
   callCycle: CallCycle;
   address: string;
+  /** The creating agent's department at the time — see shared/application/department-scope.ts. */
+  departmentId: string | null;
   industry: string | null;
   priority: ClientPriority | null;
   lastVisit: Date | null;
@@ -65,6 +67,7 @@ export class Client extends Entity<ClientProps> {
       phone: string;
       callCycle: CallCycle;
       address: string;
+      departmentId: string | null;
       industry?: string | null;
       priority?: ClientPriority | null;
       // Accepts the DTO's looser shape (role/phone optional strings) as well
@@ -87,6 +90,7 @@ export class Client extends Entity<ClientProps> {
         phone: props.phone.trim(),
         callCycle: props.callCycle,
         address: props.address.trim(),
+        departmentId: props.departmentId,
         industry: props.industry?.trim() || null,
         priority: props.priority ?? null,
         lastVisit: null,
@@ -169,6 +173,10 @@ export class Client extends Entity<ClientProps> {
 
   get address(): string {
     return this.props.address;
+  }
+
+  get departmentId(): string | null {
+    return this.props.departmentId;
   }
 
   get industry(): string | null {

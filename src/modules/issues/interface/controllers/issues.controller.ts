@@ -31,6 +31,7 @@ function toResponse(issue: Issue) {
     clientName: issue.clientName,
     agentId: issue.agentId,
     agentName: issue.agentName,
+    departmentId: issue.departmentId,
     description: issue.description,
     visitNote: issue.visitNote,
     activityLogId: issue.activityLogId,
@@ -59,14 +60,19 @@ export class IssuesController {
       ...dto,
       agentId: user.sub,
       agentName: user.name,
+      departmentId: user.departmentId,
     });
     return toResponse(issue);
   }
 
   @Roles('org_admin', 'manager')
   @Get()
-  async list(@Query() query: ListIssuesQueryDto) {
-    const issues = await this.listIssuesUseCase.execute(query);
+  async list(@CurrentUser() user: JwtPayload, @Query() query: ListIssuesQueryDto) {
+    const issues = await this.listIssuesUseCase.execute({
+      ...query,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
+    });
     return issues.map(toResponse);
   }
 

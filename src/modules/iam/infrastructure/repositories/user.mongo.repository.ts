@@ -19,6 +19,10 @@ export class UserMongoRepository implements UserRepository {
     return doc ? this.toDomain(doc) : null;
   }
 
+  async countInDepartment(departmentId: string): Promise<number> {
+    return this.model.countDocuments({ departmentId });
+  }
+
   async create(user: User): Promise<User> {
     const created = await new this.model({
       _id: user.id,
@@ -27,6 +31,7 @@ export class UserMongoRepository implements UserRepository {
       passwordHash: user.passwordHash,
       role: user.role,
       orgId: user.orgId,
+      departmentId: user.departmentId,
     }).save();
     return this.toDomain(created);
   }
@@ -35,7 +40,7 @@ export class UserMongoRepository implements UserRepository {
     const updated = await this.model
       .findByIdAndUpdate(
         user.id,
-        { name: user.name, role: user.role, orgId: user.orgId },
+        { name: user.name, role: user.role, orgId: user.orgId, departmentId: user.departmentId },
         { new: true },
       )
       .exec();
@@ -53,6 +58,7 @@ export class UserMongoRepository implements UserRepository {
         passwordHash: doc.passwordHash,
         role: doc.role,
         orgId: doc.orgId,
+        departmentId: doc.departmentId,
       },
       doc._id,
     );

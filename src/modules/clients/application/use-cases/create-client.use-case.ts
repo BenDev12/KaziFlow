@@ -18,6 +18,7 @@ export interface CreateClientInput {
   phone: string;
   callCycle: CallCycle;
   address: string;
+  departmentId: string | null;
   industry?: string;
   priority?: ClientPriority;
   // Loose shape (role/phone optional, not required-null) so the DTO — which

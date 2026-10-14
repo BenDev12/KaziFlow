@@ -10,6 +10,7 @@ export interface InviteProps {
   orgId: string;
   email: string;
   role: UserRole;
+  departmentId: string | null;
   token: string;
   status: InviteStatus;
   invitedByUserId: string;
@@ -34,6 +35,7 @@ export class Invite extends Entity<InviteProps> {
       orgId: string;
       email: string;
       role: UserRole;
+      departmentId: string | null;
       token: string;
       invitedByUserId: string;
       invitedByName: string;
@@ -47,6 +49,7 @@ export class Invite extends Entity<InviteProps> {
         orgId: props.orgId,
         email: props.email.trim().toLowerCase(),
         role: props.role,
+        departmentId: props.departmentId,
         token: props.token,
         status: 'pending',
         invitedByUserId: props.invitedByUserId,
@@ -93,6 +96,10 @@ export class Invite extends Entity<InviteProps> {
 
   get role(): UserRole {
     return this.props.role;
+  }
+
+  get departmentId(): string | null {
+    return this.props.departmentId;
   }
 
   get token(): string {

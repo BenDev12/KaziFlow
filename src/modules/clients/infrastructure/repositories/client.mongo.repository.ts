@@ -27,10 +27,22 @@ export class ClientMongoRepository
     const query: FilterQuery<ClientDocument> = {};
     if (filter.priority) query.priority = filter.priority;
     if (filter.callCycle) query.callCycle = filter.callCycle;
+
+    // $or is used twice over (search OR, department OR) — composed under
+    // $and rather than letting the second assignment clobber the first.
+    const andConditions: FilterQuery<ClientDocument>[] = [];
     if (filter.search) {
       const pattern = new RegExp(escapeRegExp(filter.search), 'i');
-      query.$or = [{ name: pattern }, { contact: pattern }];
+      andConditions.push({ $or: [{ name: pattern }, { contact: pattern }] });
     }
+    if (filter.departmentId) {
+      // Records with no department (created before departments existed, or
+      // by an unassigned member) stay visible to everyone — only a record
+      // explicitly tagged with a DIFFERENT department is hidden.
+      andConditions.push({ $or: [{ departmentId: filter.departmentId }, { departmentId: null }] });
+    }
+    if (andConditions.length > 0) query.$and = andConditions;
+
     const docs = await this.findManyScoped(query, { name: 1 });
     return docs.map((doc) => this.toDomain(doc));
   }
@@ -43,6 +55,7 @@ export class ClientMongoRepository
       phone: client.phone,
       callCycle: client.callCycle,
       address: client.address,
+      departmentId: client.departmentId,
       industry: client.industry,
       priority: client.priority,
       lastVisit: client.lastVisit,
@@ -88,6 +101,7 @@ export class ClientMongoRepository
         phone: doc.phone,
         callCycle: doc.callCycle,
         address: doc.address,
+        departmentId: doc.departmentId,
         industry: doc.industry,
         priority: doc.priority,
         lastVisit: doc.lastVisit,

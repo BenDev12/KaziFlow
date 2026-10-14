@@ -60,6 +60,7 @@ export class CreateOrganizationUseCase implements UseCase<
       role: savedUser.role,
       email: savedUser.email,
       name: savedUser.name,
+      departmentId: savedUser.departmentId,
     });
 
     return { orgId: savedOrg.id, tokens };

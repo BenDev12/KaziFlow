@@ -34,6 +34,7 @@ export class RefreshTokenUseCase implements UseCase<RefreshTokenInput, TokenPair
       role: user.role,
       email: user.email,
       name: user.name,
+      departmentId: user.departmentId,
     });
   }
 }

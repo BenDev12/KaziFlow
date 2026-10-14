@@ -13,6 +13,7 @@ export interface CreateTaskInput {
   clientId: string;
   agentId: string;
   agentName: string;
+  departmentId: string | null;
   description: string;
   dueDate?: Date;
   activityLogId: string;

@@ -67,6 +67,7 @@ export class AcceptInviteUseCase implements UseCase<AcceptInviteInput, AcceptInv
         passwordHash,
         role: invite.role,
         orgId: invite.orgId,
+        departmentId: invite.departmentId,
       },
       randomUUID(),
     );
@@ -81,6 +82,7 @@ export class AcceptInviteUseCase implements UseCase<AcceptInviteInput, AcceptInv
       role: savedUser.role,
       email: savedUser.email,
       name: savedUser.name,
+      departmentId: savedUser.departmentId,
     });
 
     return { orgId: org.id, orgName: org.name, role: savedUser.role, tokens };

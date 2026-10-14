@@ -32,6 +32,7 @@ function toResponse(flag: Flag) {
     clientName: flag.clientName,
     agentId: flag.agentId,
     agentName: flag.agentName,
+    departmentId: flag.departmentId,
     flagType: flag.flagType,
     status: flag.status,
     visitNote: flag.visitNote,
@@ -60,14 +61,19 @@ export class FlagsController {
       ...dto,
       agentId: user.sub,
       agentName: user.name,
+      departmentId: user.departmentId,
     });
     return toResponse(flag);
   }
 
   @Roles('org_admin', 'manager')
   @Get()
-  async list(@Query() query: ListFlagsQueryDto) {
-    const flags = await this.listFlagsUseCase.execute(query);
+  async list(@CurrentUser() user: JwtPayload, @Query() query: ListFlagsQueryDto) {
+    const flags = await this.listFlagsUseCase.execute({
+      ...query,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
+    });
     return flags.map(toResponse);
   }
 

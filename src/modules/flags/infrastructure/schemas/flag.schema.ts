@@ -38,6 +38,9 @@ export class FlagDocument extends Document<string> {
   @Prop({ required: true, trim: true })
   agentName!: string;
 
+  @Prop({ type: String, default: null })
+  departmentId!: string | null;
+
   @Prop({ required: true, enum: FLAG_TYPES })
   flagType!: FlagType;
 
@@ -69,3 +72,4 @@ export class FlagDocument extends Document<string> {
 export const FlagSchema = SchemaFactory.createForClass(FlagDocument);
 FlagSchema.index({ orgId: 1, status: 1 });
 FlagSchema.index({ orgId: 1, clientId: 1 });
+FlagSchema.index({ orgId: 1, departmentId: 1 });

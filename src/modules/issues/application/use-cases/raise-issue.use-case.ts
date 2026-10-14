@@ -13,6 +13,7 @@ export interface RaiseIssueInput {
   clientId: string;
   agentId: string;
   agentName: string;
+  departmentId: string | null;
   description: string;
   visitNote: string;
   activityLogId: string;
