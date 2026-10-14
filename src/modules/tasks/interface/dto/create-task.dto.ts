@@ -17,10 +17,10 @@ export class CreateTaskDto {
   @IsISO8601()
   dueDate?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'Omit for a task not tied to a specific logged visit (e.g. one started from a template).' })
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  activityLogId!: string;
+  activityLogId?: string;
 
   @ApiPropertyOptional({
     description:

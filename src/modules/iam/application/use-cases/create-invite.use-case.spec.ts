@@ -74,6 +74,10 @@ class FakeUserRepository implements UserRepository {
   async countInDepartment(departmentId: string): Promise<number> {
     return this.users.filter((user) => user.departmentId === departmentId).length;
   }
+
+  async findAllInOrg(orgId: string): Promise<User[]> {
+    return this.users.filter((user) => user.orgId === orgId);
+  }
 }
 
 class FakeOrganizationRepository implements OrganizationRepository {

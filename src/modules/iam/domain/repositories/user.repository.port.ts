@@ -14,4 +14,6 @@ export interface UserRepository {
   save(user: User): Promise<User>;
   /** Used to block deleting a department that still has members assigned. */
   countInDepartment(departmentId: string): Promise<number>;
+  /** Every onboarded member of an org — the assignment picker's source list. */
+  findAllInOrg(orgId: string): Promise<User[]>;
 }

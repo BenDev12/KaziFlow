@@ -23,6 +23,11 @@ export class UserMongoRepository implements UserRepository {
     return this.model.countDocuments({ departmentId });
   }
 
+  async findAllInOrg(orgId: string): Promise<User[]> {
+    const docs = await this.model.find({ orgId }).sort({ name: 1 }).exec();
+    return docs.map((doc) => this.toDomain(doc));
+  }
+
   async create(user: User): Promise<User> {
     const created = await new this.model({
       _id: user.id,

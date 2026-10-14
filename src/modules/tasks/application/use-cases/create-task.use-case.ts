@@ -21,7 +21,8 @@ export interface CreateTaskInput {
   departmentId: string | null;
   description: string;
   dueDate?: Date;
-  activityLogId: string;
+  /** Omit for a task not tied to a specific logged visit (e.g. one started from a template). */
+  activityLogId?: string;
   /** Picking a template overrides departmentId with the template's entry stage's department. */
   templateId?: string;
 }
@@ -73,7 +74,7 @@ export class CreateTaskUseCase implements UseCase<CreateTaskInput, Task> {
         departmentId,
         description: input.description,
         dueDate: input.dueDate,
-        activityLogId: input.activityLogId,
+        activityLogId: input.activityLogId ?? null,
         templateId,
         stageId,
         requiresApproval,

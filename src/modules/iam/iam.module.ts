@@ -12,6 +12,7 @@ import { CreateInviteUseCase } from './application/use-cases/create-invite.use-c
 import { CreateOrganizationUseCase } from './application/use-cases/create-organization.use-case';
 import { GetInviteByTokenUseCase } from './application/use-cases/get-invite-by-token.use-case';
 import { ListInvitesUseCase } from './application/use-cases/list-invites.use-case';
+import { ListOrgMembersUseCase } from './application/use-cases/list-org-members.use-case';
 import { LoginUseCase } from './application/use-cases/login.use-case';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
 import { RevokeInviteUseCase } from './application/use-cases/revoke-invite.use-case';
@@ -57,6 +58,7 @@ import { OrganizationController } from './interface/controllers/organization.con
     LoginUseCase,
     RefreshTokenUseCase,
     CreateOrganizationUseCase,
+    ListOrgMembersUseCase,
     UpdateProfileUseCase,
     CreateInviteUseCase,
     ListInvitesUseCase,

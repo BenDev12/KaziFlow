@@ -30,6 +30,10 @@ class FakeUserRepository implements UserRepository {
     return [...this.usersByEmail.values()].filter((user) => user.departmentId === departmentId)
       .length;
   }
+
+  async findAllInOrg(orgId: string): Promise<User[]> {
+    return [...this.usersByEmail.values()].filter((user) => user.orgId === orgId);
+  }
 }
 
 class FakePasswordHasher implements PasswordHasher {
