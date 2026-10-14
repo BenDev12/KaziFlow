@@ -11,6 +11,7 @@ import { FlagsModule } from './modules/flags/flags.module';
 import { IamModule } from './modules/iam/iam.module';
 import { IssuesModule } from './modules/issues/issues.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { WorkflowTemplatesModule } from './modules/workflow-templates/workflow-templates.module';
 import { DatabaseModule } from './shared/infrastructure/database/database.module';
 import { EventsModule } from './shared/infrastructure/events/events.module';
 import { buildPinoConfig } from './shared/infrastructure/logging/pino.config';
@@ -30,6 +31,7 @@ import { TenantContextMiddleware } from './shared/infrastructure/tenancy/tenant-
     ClientsModule,
     ActivitiesModule,
     IssuesModule,
+    WorkflowTemplatesModule,
     TasksModule,
     FlagsModule,
     AnalyticsModule,

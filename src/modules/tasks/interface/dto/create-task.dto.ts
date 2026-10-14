@@ -21,4 +21,12 @@ export class CreateTaskDto {
   @IsString()
   @MinLength(1)
   activityLogId!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Pick a WorkflowTemplate to start this task at its entry stage, overriding the department you create it in.',
+  })
+  @IsOptional()
+  @IsString()
+  templateId?: string;
 }

@@ -24,6 +24,7 @@ export class TaskMongoRepository
     const query: FilterQuery<TaskDocument> = {};
     if (filter.status) query.status = filter.status;
     if (filter.clientId) query.clientId = filter.clientId;
+    if (filter.assignedToUserId) query.assignedToUserId = filter.assignedToUserId;
     if (filter.departmentId) {
       // Records with no department (created before departments existed, or
       // by an unassigned member) stay visible to everyone — only a record
@@ -46,6 +47,16 @@ export class TaskMongoRepository
       dueDate: task.dueDate,
       activityLogId: task.activityLogId,
       status: task.status,
+      templateId: task.templateId,
+      stageId: task.stageId,
+      requiresApproval: task.requiresApproval,
+      checklistItems: task.checklistItems,
+      assignedToUserId: task.assignedToUserId,
+      assignedToName: task.assignedToName,
+      parentTaskId: task.parentTaskId,
+      submittedForApprovalById: task.submittedForApprovalById,
+      submittedForApprovalByName: task.submittedForApprovalByName,
+      submittedForApprovalAt: task.submittedForApprovalAt,
       completedById: task.completedById,
       completedByName: task.completedByName,
       completedAt: task.completedAt,
@@ -58,6 +69,12 @@ export class TaskMongoRepository
       { _id: task.id },
       {
         status: task.status,
+        checklistItems: task.checklistItems,
+        assignedToUserId: task.assignedToUserId,
+        assignedToName: task.assignedToName,
+        submittedForApprovalById: task.submittedForApprovalById,
+        submittedForApprovalByName: task.submittedForApprovalByName,
+        submittedForApprovalAt: task.submittedForApprovalAt,
         completedById: task.completedById,
         completedByName: task.completedByName,
         completedAt: task.completedAt,
@@ -79,6 +96,16 @@ export class TaskMongoRepository
         dueDate: doc.dueDate,
         activityLogId: doc.activityLogId,
         status: doc.status,
+        templateId: doc.templateId,
+        stageId: doc.stageId,
+        requiresApproval: doc.requiresApproval,
+        checklistItems: doc.checklistItems.map((i) => ({ id: i.id, label: i.label, done: i.done })),
+        assignedToUserId: doc.assignedToUserId,
+        assignedToName: doc.assignedToName,
+        parentTaskId: doc.parentTaskId,
+        submittedForApprovalById: doc.submittedForApprovalById,
+        submittedForApprovalByName: doc.submittedForApprovalByName,
+        submittedForApprovalAt: doc.submittedForApprovalAt,
         completedById: doc.completedById,
         completedByName: doc.completedByName,
         completedAt: doc.completedAt,

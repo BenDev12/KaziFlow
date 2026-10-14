@@ -76,6 +76,14 @@ describe('Field Tracker API (e2e)', () => {
     return (Array.isArray(setCookie) ? setCookie : [setCookie]).map((c) => c.split(';')[0]);
   }
 
+  /** Display-only decode (no signature check needed — this is the test's own just-issued token) to get a user's id for assertions. */
+  function userIdFromCookies(cookies: string[]): string {
+    const accessCookie = cookies.find((c) => c.startsWith('access_token='));
+    const token = accessCookie!.split('=')[1];
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    return payload.sub as string;
+  }
+
   async function signupAndOnboard(email: string, orgName: string) {
     const signupRes = await request(app.getHttpServer())
       .post('/v1/auth/signup')
@@ -333,7 +341,7 @@ describe('Field Tracker API (e2e)', () => {
     await request(app.getHttpServer())
       .post('/v1/invites')
       .set('Cookie', admin.cookies)
-      .send({ email: 'sales-mgr@example.com', role: 'manager', departmentId: salesId })
+      .send({ email: 'dept-sales-mgr@example.com', role: 'manager', departmentId: salesId })
       .expect(201);
     // The public preview (no auth at all) must resolve the department name
     // without blowing up — this is what originally broke (see
@@ -448,5 +456,274 @@ describe('Field Tracker API (e2e)', () => {
       .set('Cookie', agentCookies)
       .expect(200);
     expect(listRes.body.map((d: { name: string }) => d.name)).toContain('Ops');
+  });
+
+  it('runs a full workflow pipeline: fan-out spawning, approval gate, department-scoped assignment, and who may close a task', async () => {
+    const admin = await signupAndOnboard('wf-admin@example.com', 'WorkflowCo');
+
+    async function createDept(name: string): Promise<string> {
+      const res = await request(app.getHttpServer())
+        .post('/v1/departments')
+        .set('Cookie', admin.cookies)
+        .send({ name })
+        .expect(201);
+      return res.body.id as string;
+    }
+    const salesId = await createDept('Sales');
+    const engineeringId = await createDept('Engineering');
+    const financeId = await createDept('Finance');
+
+    async function inviteAndAccept(
+      email: string,
+      role: 'manager' | 'agent',
+      departmentId: string,
+      name: string,
+    ) {
+      await request(app.getHttpServer())
+        .post('/v1/invites')
+        .set('Cookie', admin.cookies)
+        .send({ email, role, departmentId })
+        .expect(201);
+      return acceptLatestInvite(name);
+    }
+    const salesManager = await inviteAndAccept(
+      'wf-sales-mgr@example.com',
+      'manager',
+      salesId,
+      'Sales Mgr',
+    );
+    const salesAgent = await inviteAndAccept(
+      'wf-sales-agent@example.com',
+      'agent',
+      salesId,
+      'Sales Agent',
+    );
+    const salesAgent2 = await inviteAndAccept(
+      'wf-sales-agent2@example.com',
+      'agent',
+      salesId,
+      'Sales Agent 2',
+    );
+    const engManager = await inviteAndAccept(
+      'wf-eng-mgr@example.com',
+      'manager',
+      engineeringId,
+      'Eng Mgr',
+    );
+    const engAgent = await inviteAndAccept(
+      'wf-eng-agent@example.com',
+      'agent',
+      engineeringId,
+      'Eng Agent',
+    );
+    const financeManager = await inviteAndAccept(
+      'wf-fin-mgr@example.com',
+      'manager',
+      financeId,
+      'Finance Mgr',
+    );
+
+    // A "Site Visit Request" SOP: Sales intake (needs manager sign-off) fans
+    // out to Engineering (site work) AND Finance (billing note) at once.
+    const templateRes = await request(app.getHttpServer())
+      .post('/v1/workflow-templates')
+      .set('Cookie', admin.cookies)
+      .send({
+        name: 'Site Visit Request',
+        entryStageId: 'request',
+        stages: [
+          {
+            id: 'request',
+            name: 'Request intake',
+            departmentId: salesId,
+            requiresApproval: true,
+            checklistTemplate: ['Confirm client address'],
+            nextStageIds: ['field-work', 'notify-finance'],
+          },
+          {
+            id: 'field-work',
+            name: 'Site visit',
+            departmentId: engineeringId,
+            requiresApproval: false,
+            checklistTemplate: ['Visit site', 'Submit report'],
+            nextStageIds: [],
+          },
+          {
+            id: 'notify-finance',
+            name: 'Billing note',
+            departmentId: financeId,
+            requiresApproval: false,
+            checklistTemplate: [],
+            nextStageIds: [],
+          },
+        ],
+      })
+      .expect(201);
+    const templateId = templateRes.body.id as string;
+
+    // Only org_admin manages templates; everyone onboarded can list them.
+    await request(app.getHttpServer())
+      .post('/v1/workflow-templates')
+      .set('Cookie', salesAgent)
+      .send({
+        name: 'Rogue',
+        entryStageId: 'a',
+        stages: [{ id: 'a', name: 'A', departmentId: salesId }],
+      })
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/v1/workflow-templates')
+      .set('Cookie', engAgent)
+      .expect(200);
+
+    const clientRes = await request(app.getHttpServer())
+      .post('/v1/clients')
+      .set('Cookie', salesAgent)
+      .send({
+        name: 'Acme Dental',
+        contact: 'Jane',
+        phone: '555',
+        callCycle: 'Weekly',
+        address: '1 Main St',
+      })
+      .expect(201);
+    const clientId = clientRes.body.id as string;
+
+    // The Sales agent kicks off the SOP — note: no activityLogId required
+    // when a task is spawned/created from a template.
+    const taskRes = await request(app.getHttpServer())
+      .post('/v1/tasks')
+      .set('Cookie', salesAgent)
+      .send({
+        clientId,
+        description: 'Handle new site visit request',
+        activityLogId: 'activity-1',
+        templateId,
+      })
+      .expect(201);
+    const requestTaskId = taskRes.body.id as string;
+    expect(taskRes.body.departmentId).toBe(salesId); // entry stage's department, not the creator's own
+    expect(taskRes.body.requiresApproval).toBe(true);
+    const checklistItemId = taskRes.body.checklistItems[0].id as string;
+
+    // Engineering can't see a Sales-department task.
+    const engList = await request(app.getHttpServer())
+      .get('/v1/tasks')
+      .set('Cookie', engManager)
+      .expect(200);
+    expect(engList.body).toHaveLength(0);
+    // ...but every Sales member can, agents included (not just the manager).
+    const salesAgentList = await request(app.getHttpServer())
+      .get('/v1/tasks')
+      .set('Cookie', salesAgent)
+      .expect(200);
+    expect(salesAgentList.body.map((t: { id: string }) => t.id)).toContain(requestTaskId);
+
+    // Only this department's manager (or admin) can assign — and only to a member of that same department.
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/assign`)
+      .set('Cookie', engManager)
+      .send({ assigneeUserId: 'whoever' })
+      .expect(404); // can't even see it, so it's reported as not-found, not forbidden
+
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/assign`)
+      .set('Cookie', salesManager)
+      .send({ assigneeUserId: 'not-a-real-user-id' })
+      .expect(404); // assignee itself must exist
+
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/assign`)
+      .set('Cookie', salesManager)
+      .send({ assigneeUserId: userIdFromCookies(financeManager) })
+      .expect(400); // can't assign a Sales task to someone outside Sales
+
+    // Assign to the Sales agent who created it (their own user id, from the task's own agentId).
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/assign`)
+      .set('Cookie', salesManager)
+      .send({ assigneeUserId: taskRes.body.agentId })
+      .expect(200);
+
+    // Only the assignee or this department's manager/admin may touch the checklist — a peer in the SAME department may not.
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/checklist/${checklistItemId}`)
+      .set('Cookie', salesAgent2)
+      .send({ done: true })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/checklist/${checklistItemId}`)
+      .set('Cookie', salesAgent)
+      .send({ done: true })
+      .expect(200);
+
+    // The assignee's own completion is held for approval — the stage requires it.
+    const submitRes = await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/complete`)
+      .set('Cookie', salesAgent)
+      .expect(200);
+    expect(submitRes.body.status).toBe('awaiting_approval');
+
+    // A peer (not the assignee, not a manager) still can't approve it.
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/approve`)
+      .set('Cookie', salesAgent2)
+      .expect(403);
+
+    // The department manager approves — this finishes the task AND fans out
+    // into two brand-new tasks, one per next stage.
+    const approveRes = await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/approve`)
+      .set('Cookie', salesManager)
+      .expect(200);
+    expect(approveRes.body.status).toBe('completed');
+    expect(approveRes.body.completedById).not.toBe(taskRes.body.agentId); // the approving manager, not the submitter
+
+    const engListAfter = await request(app.getHttpServer())
+      .get('/v1/tasks')
+      .set('Cookie', engManager)
+      .expect(200);
+    expect(engListAfter.body).toHaveLength(1);
+    expect(engListAfter.body[0].parentTaskId).toBe(requestTaskId);
+    expect(engListAfter.body[0].departmentId).toBe(engineeringId);
+    const fieldWorkTaskId = engListAfter.body[0].id as string;
+
+    const finListAfter = await request(app.getHttpServer())
+      .get('/v1/tasks')
+      .set('Cookie', financeManager)
+      .expect(200);
+    expect(finListAfter.body).toHaveLength(1);
+    expect(finListAfter.body[0].parentTaskId).toBe(requestTaskId);
+
+    // Engineering's stage needs no approval: assigning it to the engineer
+    // and having THEM finish it directly (no submit/approve round trip).
+    const engAgentId = userIdFromCookies(engAgent);
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${fieldWorkTaskId}/assign`)
+      .set('Cookie', engManager)
+      .send({ assigneeUserId: engAgentId })
+      .expect(200);
+
+    const engCompleteRes = await request(app.getHttpServer())
+      .post(`/v1/tasks/${fieldWorkTaskId}/complete`)
+      .set('Cookie', engAgent)
+      .expect(200);
+    expect(engCompleteRes.body.status).toBe('completed'); // no approval stage here — finishes immediately
+
+    // That stage had no nextStageIds — the pipeline ends there, nothing new spawned.
+    const engListFinal = await request(app.getHttpServer())
+      .get('/v1/tasks')
+      .set('Cookie', engManager)
+      .expect(200);
+    expect(engListFinal.body).toHaveLength(1); // still just the one field-work task, no further fan-out
+
+    // Finance's task was never assigned at all — its manager can still close it directly.
+    const finCompleteRes = await request(app.getHttpServer())
+      .post(`/v1/tasks/${finListAfter.body[0].id}/complete`)
+      .set('Cookie', financeManager)
+      .expect(200);
+    expect(finCompleteRes.body.status).toBe('completed');
+    expect(finCompleteRes.body.assignedToUserId).toBeNull();
   });
 });
