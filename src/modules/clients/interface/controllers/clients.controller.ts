@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Patch,
   Post,
@@ -16,7 +17,13 @@ import { CurrentUser } from '../../../../shared/interface/decorators/current-use
 import { JwtAuthGuard } from '../../../../shared/interface/guards/jwt-auth.guard';
 import { RequireOrgGuard } from '../../../../shared/interface/guards/require-org.guard';
 import { JwtPayload } from '../../../../shared/infrastructure/tenancy/jwt-payload.interface';
+import { ForbiddenError } from '../../../../shared/domain/errors/domain-error';
+import {
+  DEPARTMENT_REPOSITORY,
+  DepartmentRepository,
+} from '../../../departments/domain/repositories/department.repository.port';
 import { Client } from '../../domain/entities/client.entity';
+import { canAccessOffices } from '../../application/office-access';
 import { CreateClientUseCase } from '../../application/use-cases/create-client.use-case';
 import { DeleteClientUseCase } from '../../application/use-cases/delete-client.use-case';
 import { GetClientUseCase } from '../../application/use-cases/get-client.use-case';
@@ -25,9 +32,11 @@ import {
   ListClientsUseCase,
 } from '../../application/use-cases/list-clients.use-case';
 import { UpdateClientUseCase } from '../../application/use-cases/update-client.use-case';
+import { RecordClientVisitUseCase } from '../../application/use-cases/record-client-visit.use-case';
 import { CreateClientDto } from '../dto/create-client.dto';
 import { ListClientsQueryDto } from '../dto/list-clients.query.dto';
 import { UpdateClientDto } from '../dto/update-client.dto';
+import { RecordVisitDto } from '../dto/record-visit.dto';
 
 function toResponse(client: Client, overdue?: boolean) {
   return {
@@ -59,10 +68,24 @@ export class ClientsController {
     private readonly deleteClientUseCase: DeleteClientUseCase,
     private readonly listClientsUseCase: ListClientsUseCase,
     private readonly getClientUseCase: GetClientUseCase,
+    private readonly recordClientVisitUseCase: RecordClientVisitUseCase,
+    @Inject(DEPARTMENT_REPOSITORY) private readonly departments: DepartmentRepository,
   ) {}
+
+  /**
+   * Offices is a sales/field-team feature — see office-access.ts for exactly
+   * who qualifies. Everyone else gets a 403, not a filtered/empty view.
+   */
+  private async assertCanAccessOffices(user: JwtPayload): Promise<void> {
+    const departments = await this.departments.findAll();
+    if (!canAccessOffices(user.role, user.departmentId, departments)) {
+      throw new ForbiddenError('You do not have access to Offices.');
+    }
+  }
 
   @Post()
   async create(@CurrentUser() user: JwtPayload, @Body() dto: CreateClientDto) {
+    await this.assertCanAccessOffices(user);
     const client = await this.createClientUseCase.execute({
       ...dto,
       departmentId: user.departmentId,
@@ -72,21 +95,15 @@ export class ClientsController {
 
   @Get()
   async list(@CurrentUser() user: JwtPayload, @Query() query: ListClientsQueryDto) {
-    const items: ClientListItem[] = await this.listClientsUseCase.execute({
-      ...query,
-      requestingRole: user.role,
-      requestingDepartmentId: user.departmentId,
-    });
+    await this.assertCanAccessOffices(user);
+    const items: ClientListItem[] = await this.listClientsUseCase.execute(query);
     return items.map(({ client, overdue }) => toResponse(client, overdue));
   }
 
   @Get(':id')
   async get(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    const client = await this.getClientUseCase.execute({
-      clientId: id,
-      requestingRole: user.role,
-      requestingDepartmentId: user.departmentId,
-    });
+    await this.assertCanAccessOffices(user);
+    const client = await this.getClientUseCase.execute({ clientId: id });
     return toResponse(client);
   }
 
@@ -96,22 +113,26 @@ export class ClientsController {
     @Param('id') id: string,
     @Body() dto: UpdateClientDto,
   ) {
-    const client = await this.updateClientUseCase.execute({
-      clientId: id,
-      patch: dto,
-      requestingRole: user.role,
-      requestingDepartmentId: user.departmentId,
-    });
+    await this.assertCanAccessOffices(user);
+    const client = await this.updateClientUseCase.execute({ clientId: id, patch: dto });
     return toResponse(client);
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
   async delete(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    await this.deleteClientUseCase.execute({
-      clientId: id,
-      requestingRole: user.role,
-      requestingDepartmentId: user.departmentId,
-    });
+    await this.assertCanAccessOffices(user);
+    await this.deleteClientUseCase.execute({ clientId: id });
+  }
+
+  @Post(':id/visits')
+  async recordVisit(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: RecordVisitDto,
+  ) {
+    await this.assertCanAccessOffices(user);
+    const client = await this.recordClientVisitUseCase.execute({ clientId: id, notes: dto.notes });
+    return toResponse(client);
   }
 }
