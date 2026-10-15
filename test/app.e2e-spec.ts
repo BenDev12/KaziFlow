@@ -596,7 +596,7 @@ describe('Field Tracker API (e2e)', () => {
       .set('Cookie', salesAgent)
       .send({
         clientId,
-        description: 'Handle new site visit request',
+        title: 'Handle new site visit request',
         activityLogId: 'activity-1',
         templateId,
       })

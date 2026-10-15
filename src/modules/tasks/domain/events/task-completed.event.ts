@@ -6,7 +6,7 @@ export class TaskCompletedEvent extends DomainEvent {
   constructor(
     orgId: string,
     readonly taskId: string,
-    readonly clientId: string,
+    readonly clientId: string | null,
     readonly completedById: string,
   ) {
     super(orgId);

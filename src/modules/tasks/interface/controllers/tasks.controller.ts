@@ -34,6 +34,7 @@ function toResponse(task: Task) {
     agentId: task.agentId,
     agentName: task.agentName,
     departmentId: task.departmentId,
+    title: task.title,
     description: task.description,
     dueDate: task.dueDate,
     activityLogId: task.activityLogId,
@@ -44,6 +45,7 @@ function toResponse(task: Task) {
     checklistItems: task.checklistItems,
     assignedToUserId: task.assignedToUserId,
     assignedToName: task.assignedToName,
+    links: task.links,
     parentTaskId: task.parentTaskId,
     submittedForApprovalById: task.submittedForApprovalById,
     submittedForApprovalByName: task.submittedForApprovalByName,
@@ -81,8 +83,11 @@ export class TasksController {
       ...dto,
       agentId: user.sub,
       agentName: user.name,
-      departmentId: user.departmentId,
+      creatorDepartmentId: user.departmentId,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+      links: dto.links?.map((l) => ({ label: l.label ?? '', url: l.url })),
     });
     return toResponse(task);
   }

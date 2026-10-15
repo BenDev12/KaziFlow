@@ -18,6 +18,15 @@ class ChecklistItemSubdocument {
   done!: boolean;
 }
 
+@Schema({ _id: false })
+class TaskLinkSubdocument {
+  @Prop({ type: String, default: '', trim: true })
+  label!: string;
+
+  @Prop({ type: String, required: true, trim: true })
+  url!: string;
+}
+
 @Schema(baseSchemaOptions)
 export class TaskDocument extends Document<string> {
   @Prop({ type: String, required: true })
@@ -26,11 +35,11 @@ export class TaskDocument extends Document<string> {
   @Prop(orgScopedField.orgId)
   orgId!: string;
 
-  @Prop({ type: String, required: true })
-  clientId!: string;
+  @Prop({ type: String, default: null })
+  clientId!: string | null;
 
-  @Prop({ required: true, trim: true })
-  clientName!: string;
+  @Prop({ type: String, default: null, trim: true })
+  clientName!: string | null;
 
   @Prop({ type: String, required: true })
   agentId!: string;
@@ -42,7 +51,10 @@ export class TaskDocument extends Document<string> {
   departmentId!: string | null;
 
   @Prop({ required: true, trim: true })
-  description!: string;
+  title!: string;
+
+  @Prop({ type: String, default: null, trim: true })
+  description!: string | null;
 
   @Prop({ type: Date, default: null })
   dueDate!: Date | null;
@@ -70,6 +82,9 @@ export class TaskDocument extends Document<string> {
 
   @Prop({ type: String, default: null })
   assignedToName!: string | null;
+
+  @Prop({ type: [TaskLinkSubdocument], default: [] })
+  links!: TaskLinkSubdocument[];
 
   @Prop({ type: String, default: null })
   parentTaskId!: string | null;

@@ -10,14 +10,22 @@ export interface ChecklistItem {
   done: boolean;
 }
 
+export interface TaskLink {
+  label: string;
+  url: string;
+}
+
 export interface TaskProps {
-  clientId: string;
-  clientName: string;
+  /** Null for a general task not tied to any specific client/office. */
+  clientId: string | null;
+  clientName: string | null;
   agentId: string;
   agentName: string;
   /** The creating agent's department at the time (or a template stage's department) — see shared/application/department-scope.ts. */
   departmentId: string | null;
-  description: string;
+  title: string;
+  /** Optional detail text — the task's headline lives in `title`. */
+  description: string | null;
   dueDate: Date | null;
   /** Nullable because a task spawned by workflow advancement isn't tied to a fresh visit log — see parentTaskId instead. */
   activityLogId: string | null;
@@ -30,6 +38,7 @@ export interface TaskProps {
   checklistItems: ChecklistItem[];
   assignedToUserId: string | null;
   assignedToName: string | null;
+  links: TaskLink[];
   /** The task whose completion/approval spawned this one, if any (workflow provenance). */
   parentTaskId: string | null;
   submittedForApprovalById: string | null;
@@ -47,32 +56,37 @@ export class Task extends AggregateRoot<TaskProps> {
 
   static create(
     props: {
-      clientId: string;
-      clientName: string;
+      clientId?: string | null;
+      clientName?: string | null;
       agentId: string;
       agentName: string;
       departmentId: string | null;
-      description: string;
+      title: string;
+      description?: string | null;
       dueDate?: Date | null;
       activityLogId: string | null;
       templateId?: string | null;
       stageId?: string | null;
       requiresApproval?: boolean;
       checklistItems?: ChecklistItem[];
+      assignedToUserId?: string | null;
+      assignedToName?: string | null;
+      links?: TaskLink[];
       parentTaskId?: string | null;
     },
     id: string,
   ): Task {
-    if (!props.description.trim()) throw new ValidationError('Task description is required');
+    if (!props.title.trim()) throw new ValidationError('Task title is required');
 
     return new Task(
       {
-        clientId: props.clientId,
-        clientName: props.clientName,
+        clientId: props.clientId ?? null,
+        clientName: props.clientName ?? null,
         agentId: props.agentId,
         agentName: props.agentName,
         departmentId: props.departmentId,
-        description: props.description.trim(),
+        title: props.title.trim(),
+        description: props.description?.trim() || null,
         dueDate: props.dueDate ?? null,
         activityLogId: props.activityLogId,
         status: 'pending',
@@ -80,8 +94,9 @@ export class Task extends AggregateRoot<TaskProps> {
         stageId: props.stageId ?? null,
         requiresApproval: props.requiresApproval ?? false,
         checklistItems: props.checklistItems ?? [],
-        assignedToUserId: null,
-        assignedToName: null,
+        assignedToUserId: props.assignedToUserId ?? null,
+        assignedToName: props.assignedToName ?? null,
+        links: props.links ?? [],
         parentTaskId: props.parentTaskId ?? null,
         submittedForApprovalById: null,
         submittedForApprovalByName: null,
@@ -165,11 +180,11 @@ export class Task extends AggregateRoot<TaskProps> {
     );
   }
 
-  get clientId(): string {
+  get clientId(): string | null {
     return this.props.clientId;
   }
 
-  get clientName(): string {
+  get clientName(): string | null {
     return this.props.clientName;
   }
 
@@ -185,7 +200,11 @@ export class Task extends AggregateRoot<TaskProps> {
     return this.props.departmentId;
   }
 
-  get description(): string {
+  get title(): string {
+    return this.props.title;
+  }
+
+  get description(): string | null {
     return this.props.description;
   }
 
@@ -223,6 +242,10 @@ export class Task extends AggregateRoot<TaskProps> {
 
   get assignedToName(): string | null {
     return this.props.assignedToName;
+  }
+
+  get links(): TaskLink[] {
+    return this.props.links;
   }
 
   get parentTaskId(): string | null {

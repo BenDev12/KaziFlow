@@ -8,7 +8,7 @@ function buildTask(overrides?: Partial<Parameters<typeof Task.create>[0]>) {
       agentId: 'agent-1',
       agentName: 'Alex Agent',
       departmentId: 'dept-sales',
-      description: 'Call the client',
+      title: 'Call the client',
       activityLogId: 'activity-1',
       ...overrides,
     },
@@ -117,7 +117,7 @@ describe('Task', () => {
     });
   });
 
-  it('rejects creation without a description', () => {
-    expect(() => buildTask({ description: '   ' })).toThrow('Task description is required');
+  it('rejects creation without a title', () => {
+    expect(() => buildTask({ title: '   ' })).toThrow('Task title is required');
   });
 });
