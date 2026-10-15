@@ -27,6 +27,24 @@ class TaskLinkSubdocument {
   url!: string;
 }
 
+@Schema({ _id: false })
+class TaskNoteSubdocument {
+  @Prop({ type: String, required: true })
+  id!: string;
+
+  @Prop({ type: String, required: true })
+  authorId!: string;
+
+  @Prop({ required: true, trim: true })
+  authorName!: string;
+
+  @Prop({ type: String, required: true, trim: true })
+  text!: string;
+
+  @Prop({ type: Date, required: true })
+  createdAt!: Date;
+}
+
 @Schema(baseSchemaOptions)
 export class TaskDocument extends Document<string> {
   @Prop({ type: String, required: true })
@@ -85,6 +103,9 @@ export class TaskDocument extends Document<string> {
 
   @Prop({ type: [TaskLinkSubdocument], default: [] })
   links!: TaskLinkSubdocument[];
+
+  @Prop({ type: [TaskNoteSubdocument], default: [] })
+  notes!: TaskNoteSubdocument[];
 
   @Prop({ type: String, default: null })
   parentTaskId!: string | null;

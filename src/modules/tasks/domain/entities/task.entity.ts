@@ -15,6 +15,14 @@ export interface TaskLink {
   url: string;
 }
 
+export interface TaskNote {
+  id: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: Date;
+}
+
 export interface TaskProps {
   /** Null for a general task not tied to any specific client/office. */
   clientId: string | null;
@@ -39,6 +47,8 @@ export interface TaskProps {
   assignedToUserId: string | null;
   assignedToName: string | null;
   links: TaskLink[];
+  /** A running log of context/questions — anyone who can see the task may add one; it never changes status. */
+  notes: TaskNote[];
   /** The task whose completion/approval spawned this one, if any (workflow provenance). */
   parentTaskId: string | null;
   submittedForApprovalById: string | null;
@@ -97,6 +107,7 @@ export class Task extends AggregateRoot<TaskProps> {
         assignedToUserId: props.assignedToUserId ?? null,
         assignedToName: props.assignedToName ?? null,
         links: props.links ?? [],
+        notes: [],
         parentTaskId: props.parentTaskId ?? null,
         submittedForApprovalById: null,
         submittedForApprovalByName: null,
@@ -119,6 +130,18 @@ export class Task extends AggregateRoot<TaskProps> {
     }
     this.props.assignedToUserId = input.userId;
     this.props.assignedToName = input.userName;
+  }
+
+  /** Pure context — available at any status, to anyone who can already see the task (enforced by the use-case, not here). */
+  addNote(input: { id: string; byId: string; byName: string; text: string }): void {
+    if (!input.text.trim()) throw new ValidationError('Note text is required');
+    this.props.notes.push({
+      id: input.id,
+      authorId: input.byId,
+      authorName: input.byName,
+      text: input.text.trim(),
+      createdAt: new Date(),
+    });
   }
 
   toggleChecklistItem(itemId: string, done: boolean): void {
@@ -246,6 +269,10 @@ export class Task extends AggregateRoot<TaskProps> {
 
   get links(): TaskLink[] {
     return this.props.links;
+  }
+
+  get notes(): TaskNote[] {
+    return this.props.notes;
   }
 
   get parentTaskId(): string | null {

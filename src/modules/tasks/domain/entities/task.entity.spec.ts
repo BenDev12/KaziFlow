@@ -120,4 +120,34 @@ describe('Task', () => {
   it('rejects creation without a title', () => {
     expect(() => buildTask({ title: '   ' })).toThrow('Task title is required');
   });
+
+  describe('addNote', () => {
+    it('appends a note regardless of status', () => {
+      const task = buildTask();
+      task.complete({ byId: 'agent-1', byName: 'Alex Agent', orgId: 'org-1' });
+
+      task.addNote({
+        id: 'note-1',
+        byId: 'agent-1',
+        byName: 'Alex Agent',
+        text: 'Called twice, no answer.',
+      });
+
+      expect(task.notes).toHaveLength(1);
+      expect(task.notes[0]).toMatchObject({
+        id: 'note-1',
+        authorId: 'agent-1',
+        authorName: 'Alex Agent',
+        text: 'Called twice, no answer.',
+      });
+      expect(task.notes[0].createdAt).toBeInstanceOf(Date);
+    });
+
+    it('rejects an empty note', () => {
+      const task = buildTask();
+      expect(() =>
+        task.addNote({ id: 'note-1', byId: 'agent-1', byName: 'Alex Agent', text: '   ' }),
+      ).toThrow('Note text is required');
+    });
+  });
 });

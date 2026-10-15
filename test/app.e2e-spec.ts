@@ -658,6 +658,23 @@ describe('Field Tracker API (e2e)', () => {
       .send({ done: true })
       .expect(200);
 
+    // Notes are pure context, not a workflow gate — unlike the checklist,
+    // any Sales member (not just the assignee or manager) may add one.
+    const noteRes = await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/notes`)
+      .set('Cookie', salesAgent2)
+      .send({ text: 'Client asked to push the visit to next week.' })
+      .expect(201);
+    expect(noteRes.body.notes).toHaveLength(1);
+    expect(noteRes.body.notes[0].text).toBe('Client asked to push the visit to next week.');
+
+    // Engineering still can't see this Sales task, so it can't note on it either.
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${requestTaskId}/notes`)
+      .set('Cookie', engManager)
+      .send({ text: 'trying to peek' })
+      .expect(404);
+
     // The assignee's own completion is held for approval — the stage requires it.
     const submitRes = await request(app.getHttpServer())
       .post(`/v1/tasks/${requestTaskId}/complete`)

@@ -15,12 +15,14 @@ import { JwtAuthGuard } from '../../../../shared/interface/guards/jwt-auth.guard
 import { RequireOrgGuard } from '../../../../shared/interface/guards/require-org.guard';
 import { JwtPayload } from '../../../../shared/infrastructure/tenancy/jwt-payload.interface';
 import { Task } from '../../domain/entities/task.entity';
+import { AddTaskNoteUseCase } from '../../application/use-cases/add-task-note.use-case';
 import { ApproveTaskUseCase } from '../../application/use-cases/approve-task.use-case';
 import { AssignTaskUseCase } from '../../application/use-cases/assign-task.use-case';
 import { CompleteTaskUseCase } from '../../application/use-cases/complete-task.use-case';
 import { CreateTaskUseCase } from '../../application/use-cases/create-task.use-case';
 import { ListTasksUseCase } from '../../application/use-cases/list-tasks.use-case';
 import { ToggleChecklistItemUseCase } from '../../application/use-cases/toggle-checklist-item.use-case';
+import { AddTaskNoteDto } from '../dto/add-task-note.dto';
 import { AssignTaskDto } from '../dto/assign-task.dto';
 import { CreateTaskDto } from '../dto/create-task.dto';
 import { ListTasksQueryDto } from '../dto/list-tasks.query.dto';
@@ -46,6 +48,7 @@ function toResponse(task: Task) {
     assignedToUserId: task.assignedToUserId,
     assignedToName: task.assignedToName,
     links: task.links,
+    notes: task.notes,
     parentTaskId: task.parentTaskId,
     submittedForApprovalById: task.submittedForApprovalById,
     submittedForApprovalByName: task.submittedForApprovalByName,
@@ -74,6 +77,7 @@ export class TasksController {
     private readonly assignTaskUseCase: AssignTaskUseCase,
     private readonly toggleChecklistItemUseCase: ToggleChecklistItemUseCase,
     private readonly listTasksUseCase: ListTasksUseCase,
+    private readonly addTaskNoteUseCase: AddTaskNoteUseCase,
   ) {}
 
   @HttpCode(HttpStatus.CREATED)
@@ -144,6 +148,24 @@ export class TasksController {
       taskId: id,
       byId: user.sub,
       byName: user.name,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
+    });
+    return toResponse(task);
+  }
+
+  @HttpCode(HttpStatus.CREATED)
+  @Post(':id/notes')
+  async addNote(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: AddTaskNoteDto,
+  ) {
+    const task = await this.addTaskNoteUseCase.execute({
+      taskId: id,
+      text: dto.text,
+      requestingUserId: user.sub,
+      requestingUserName: user.name,
       requestingRole: user.role,
       requestingDepartmentId: user.departmentId,
     });

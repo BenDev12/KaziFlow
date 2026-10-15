@@ -4,6 +4,7 @@ import { ClientsModule } from '../clients/clients.module';
 import { IamModule } from '../iam/iam.module';
 import { WorkflowTemplatesModule } from '../workflow-templates/workflow-templates.module';
 import { TASK_REPOSITORY } from './domain/repositories/task.repository.port';
+import { AddTaskNoteUseCase } from './application/use-cases/add-task-note.use-case';
 import { ApproveTaskUseCase } from './application/use-cases/approve-task.use-case';
 import { AssignTaskUseCase } from './application/use-cases/assign-task.use-case';
 import { CreateTaskUseCase } from './application/use-cases/create-task.use-case';
@@ -32,6 +33,7 @@ import { TasksController } from './interface/controllers/tasks.controller';
     AssignTaskUseCase,
     ToggleChecklistItemUseCase,
     ListTasksUseCase,
+    AddTaskNoteUseCase,
   ],
   exports: [TASK_REPOSITORY],
 })
