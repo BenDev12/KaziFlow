@@ -82,6 +82,10 @@ export class User extends Entity<UserProps> {
     this.props.name = name.trim();
   }
 
+  resetPassword(newPasswordHash: string): void {
+    this.props.passwordHash = newPasswordHash;
+  }
+
   get email(): string {
     return this.props.email;
   }

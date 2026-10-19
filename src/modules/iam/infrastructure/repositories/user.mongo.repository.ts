@@ -45,7 +45,13 @@ export class UserMongoRepository implements UserRepository {
     const updated = await this.model
       .findByIdAndUpdate(
         user.id,
-        { name: user.name, role: user.role, orgId: user.orgId, departmentId: user.departmentId },
+        {
+          name: user.name,
+          role: user.role,
+          orgId: user.orgId,
+          departmentId: user.departmentId,
+          passwordHash: user.passwordHash,
+        },
         { new: true },
       )
       .exec();

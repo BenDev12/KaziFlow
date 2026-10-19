@@ -8,6 +8,13 @@ export interface SendInviteEmailInput {
   acceptUrl: string;
 }
 
+export interface SendPasswordResetEmailInput {
+  to: string;
+  name: string;
+  resetUrl: string;
+}
+
 export interface EmailService {
   sendInviteEmail(input: SendInviteEmailInput): Promise<void>;
+  sendPasswordResetEmail(input: SendPasswordResetEmailInput): Promise<void>;
 }

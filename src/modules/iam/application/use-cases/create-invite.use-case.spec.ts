@@ -11,7 +11,7 @@ import { User } from '../../domain/entities/user.entity';
 import { UserRepository } from '../../domain/repositories/user.repository.port';
 import { Department } from '../../../departments/domain/entities/department.entity';
 import { DepartmentRepository } from '../../../departments/domain/repositories/department.repository.port';
-import { SendInviteEmailInput, EmailService } from '../ports/email.port';
+import { SendInviteEmailInput, SendPasswordResetEmailInput, EmailService } from '../ports/email.port';
 import { CreateInviteUseCase } from './create-invite.use-case';
 
 class FakeInviteRepository implements InviteRepository {
@@ -132,6 +132,8 @@ class FakeEmailService implements EmailService {
     if (this.shouldFail) throw new Error('Resend is down');
     this.sent.push(input);
   }
+
+  async sendPasswordResetEmail(_input: SendPasswordResetEmailInput): Promise<void> {}
 }
 
 describe('CreateInviteUseCase', () => {

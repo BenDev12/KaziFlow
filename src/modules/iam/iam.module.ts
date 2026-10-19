@@ -4,6 +4,7 @@ import { DepartmentsModule } from '../departments/departments.module';
 import { ORGANIZATION_REPOSITORY } from './domain/repositories/organization.repository.port';
 import { USER_REPOSITORY } from './domain/repositories/user.repository.port';
 import { INVITE_REPOSITORY } from './domain/repositories/invite.repository.port';
+import { PASSWORD_RESET_TOKEN_REPOSITORY } from './domain/repositories/password-reset-token.repository.port';
 import { EMAIL_SERVICE } from './application/ports/email.port';
 import { PASSWORD_HASHER } from './application/ports/password-hasher.port';
 import { TOKEN_SERVICE } from './application/ports/token-service.port';
@@ -15,6 +16,8 @@ import { ListInvitesUseCase } from './application/use-cases/list-invites.use-cas
 import { ListOrgMembersUseCase } from './application/use-cases/list-org-members.use-case';
 import { LoginUseCase } from './application/use-cases/login.use-case';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
+import { RequestPasswordResetUseCase } from './application/use-cases/request-password-reset.use-case';
+import { ResetPasswordUseCase } from './application/use-cases/reset-password.use-case';
 import { RevokeInviteUseCase } from './application/use-cases/revoke-invite.use-case';
 import { SignupUseCase } from './application/use-cases/signup.use-case';
 import { UpdateProfileUseCase } from './application/use-cases/update-profile.use-case';
@@ -23,9 +26,14 @@ import {
   OrganizationDocument,
   OrganizationSchema,
 } from './infrastructure/schemas/organization.schema';
+import {
+  PasswordResetTokenDocument,
+  PasswordResetTokenSchema,
+} from './infrastructure/schemas/password-reset-token.schema';
 import { UserDocument, UserSchema } from './infrastructure/schemas/user.schema';
 import { InviteMongoRepository } from './infrastructure/repositories/invite.mongo.repository';
 import { OrganizationMongoRepository } from './infrastructure/repositories/organization.mongo.repository';
+import { PasswordResetTokenMongoRepository } from './infrastructure/repositories/password-reset-token.mongo.repository';
 import { UserMongoRepository } from './infrastructure/repositories/user.mongo.repository';
 import { Argon2PasswordHasher } from './infrastructure/services/argon2-password-hasher';
 import { JwtTokenService } from './infrastructure/services/jwt-token.service';
@@ -40,6 +48,7 @@ import { OrganizationController } from './interface/controllers/organization.con
       { name: OrganizationDocument.name, schema: OrganizationSchema },
       { name: UserDocument.name, schema: UserSchema },
       { name: InviteDocument.name, schema: InviteSchema },
+      { name: PasswordResetTokenDocument.name, schema: PasswordResetTokenSchema },
     ]),
     // Invites reference a department; DepartmentsModule in turn needs
     // USER_REPOSITORY (to block deleting a department with members still
@@ -51,6 +60,7 @@ import { OrganizationController } from './interface/controllers/organization.con
     { provide: ORGANIZATION_REPOSITORY, useClass: OrganizationMongoRepository },
     { provide: USER_REPOSITORY, useClass: UserMongoRepository },
     { provide: INVITE_REPOSITORY, useClass: InviteMongoRepository },
+    { provide: PASSWORD_RESET_TOKEN_REPOSITORY, useClass: PasswordResetTokenMongoRepository },
     { provide: PASSWORD_HASHER, useClass: Argon2PasswordHasher },
     { provide: TOKEN_SERVICE, useClass: JwtTokenService },
     { provide: EMAIL_SERVICE, useClass: ResendEmailService },
@@ -65,6 +75,8 @@ import { OrganizationController } from './interface/controllers/organization.con
     RevokeInviteUseCase,
     GetInviteByTokenUseCase,
     AcceptInviteUseCase,
+    RequestPasswordResetUseCase,
+    ResetPasswordUseCase,
   ],
   exports: [USER_REPOSITORY, ORGANIZATION_REPOSITORY],
 })

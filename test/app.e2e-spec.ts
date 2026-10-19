@@ -6,6 +6,7 @@ import request from 'supertest';
 import type {
   EmailService,
   SendInviteEmailInput,
+  SendPasswordResetEmailInput,
 } from '../src/modules/iam/application/ports/email.port';
 
 /** Records invite emails instead of calling the real Resend API during tests. */
@@ -15,6 +16,8 @@ class FakeEmailService implements EmailService {
   async sendInviteEmail(input: SendInviteEmailInput): Promise<void> {
     this.sent.push(input);
   }
+
+  async sendPasswordResetEmail(_input: SendPasswordResetEmailInput): Promise<void> {}
 }
 
 /**
