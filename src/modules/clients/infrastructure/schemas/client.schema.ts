@@ -77,6 +77,9 @@ export class ClientDocument extends Document<string> {
   @Prop({ type: String, default: null })
   routeId!: string | null;
 
+  @Prop({ type: Date, default: null })
+  routeAddedAt!: Date | null;
+
   createdAt!: Date;
   updatedAt!: Date;
 }

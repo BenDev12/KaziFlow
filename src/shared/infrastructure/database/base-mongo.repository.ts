@@ -55,6 +55,13 @@ export abstract class BaseMongoRepository<TDocument extends OrgScopedDocument> {
     return this.model.findOneAndUpdate(this.scopedFilter(filter), update, { new: true }).exec();
   }
 
+  protected async updateManyScoped(
+    filter: FilterQuery<TDocument>,
+    update: UpdateQuery<TDocument>,
+  ): Promise<void> {
+    await this.model.updateMany(this.scopedFilter(filter), update).exec();
+  }
+
   protected async deleteOneScoped(filter: FilterQuery<TDocument>): Promise<boolean> {
     const result = await this.model.deleteOne(this.scopedFilter(filter));
     return result.deletedCount === 1;

@@ -16,4 +16,6 @@ export interface ClientRepository {
   create(client: Client): Promise<Client>;
   save(client: Client): Promise<Client>;
   delete(id: string): Promise<boolean>;
+  /** Clears routeId/routeAddedAt on every client currently on this route — used when a route is deleted. */
+  unassignRoute(routeId: string): Promise<void>;
 }

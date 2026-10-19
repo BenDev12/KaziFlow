@@ -64,6 +64,7 @@ export class ClientMongoRepository
       contacts: client.contacts,
       preferredVisitTime: client.preferredVisitTime,
       routeId: client.routeId,
+      routeAddedAt: client.routeAddedAt,
     });
     return this.toDomain(doc);
   }
@@ -85,6 +86,7 @@ export class ClientMongoRepository
         contacts: client.contacts,
         preferredVisitTime: client.preferredVisitTime,
         routeId: client.routeId,
+        routeAddedAt: client.routeAddedAt,
       },
     );
     if (!doc) throw new Error(`Cannot save Client "${client.id}": document not found`);
@@ -93,6 +95,10 @@ export class ClientMongoRepository
 
   async delete(id: string): Promise<boolean> {
     return this.deleteOneScoped({ _id: id });
+  }
+
+  async unassignRoute(routeId: string): Promise<void> {
+    await this.updateManyScoped({ routeId }, { routeId: null, routeAddedAt: null });
   }
 
   private toDomain(doc: ClientDocument): Client {
@@ -112,6 +118,7 @@ export class ClientMongoRepository
         contacts: doc.contacts,
         preferredVisitTime: doc.preferredVisitTime,
         routeId: doc.routeId,
+        routeAddedAt: doc.routeAddedAt,
       },
       doc._id,
     );

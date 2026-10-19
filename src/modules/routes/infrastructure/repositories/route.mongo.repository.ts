@@ -55,6 +55,10 @@ export class RouteMongoRepository
     return this.toDomain(doc);
   }
 
+  async delete(id: string): Promise<boolean> {
+    return this.deleteOneScoped({ _id: id });
+  }
+
   private toDomain(doc: RouteDocument): Route {
     return Route.reconstitute(
       { name: doc.name, purpose: doc.purpose, agentId: doc.agentId, agentName: doc.agentName },

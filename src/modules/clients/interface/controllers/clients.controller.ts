@@ -61,6 +61,7 @@ function toResponse(client: Client, overdue?: boolean) {
     contacts: client.contacts,
     preferredVisitTime: client.preferredVisitTime,
     routeId: client.routeId,
+    routeAddedAt: client.routeAddedAt,
     ...(overdue !== undefined ? { overdue } : {}),
   };
 }

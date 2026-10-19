@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../../../shared/interface/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../../shared/interface/guards/jwt-auth.guard';
@@ -15,6 +27,7 @@ import { CreateRouteUseCase } from '../../application/use-cases/create-route.use
 import { ListRoutesUseCase } from '../../application/use-cases/list-routes.use-case';
 import { ClaimRouteUseCase } from '../../application/use-cases/claim-route.use-case';
 import { UpdateRouteUseCase } from '../../application/use-cases/update-route.use-case';
+import { DeleteRouteUseCase } from '../../application/use-cases/delete-route.use-case';
 import { CreateRouteDto } from '../dto/create-route.dto';
 import { UpdateRouteDto } from '../dto/update-route.dto';
 
@@ -37,6 +50,7 @@ export class RoutesController {
     private readonly listRoutesUseCase: ListRoutesUseCase,
     private readonly claimRouteUseCase: ClaimRouteUseCase,
     private readonly updateRouteUseCase: UpdateRouteUseCase,
+    private readonly deleteRouteUseCase: DeleteRouteUseCase,
     @Inject(DEPARTMENT_REPOSITORY) private readonly departments: DepartmentRepository,
   ) {}
 
@@ -93,5 +107,16 @@ export class RoutesController {
       purpose: dto.purpose,
     });
     return toResponse(route);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete(':id')
+  async delete(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    await this.assertCanAccessOffices(user);
+    await this.deleteRouteUseCase.execute({
+      routeId: id,
+      requesterId: user.sub,
+      canManage: user.role === 'org_admin' || user.role === 'manager',
+    });
   }
 }

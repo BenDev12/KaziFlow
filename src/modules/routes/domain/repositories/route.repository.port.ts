@@ -9,4 +9,5 @@ export interface RouteRepository {
   findAll(): Promise<Route[]>;
   create(route: Route): Promise<Route>;
   save(route: Route): Promise<Route>;
+  delete(id: string): Promise<boolean>;
 }

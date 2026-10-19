@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DepartmentsModule } from '../departments/departments.module';
 import { RoutesModule } from '../routes/routes.module';
@@ -18,7 +18,9 @@ import { ClientsController } from './interface/controllers/clients.controller';
   imports: [
     MongooseModule.forFeature([{ name: ClientDocument.name, schema: ClientSchema }]),
     DepartmentsModule,
-    RoutesModule,
+    // RoutesModule imports ClientsModule back (DeleteRouteUseCase's
+    // cascade-clear) — a genuine mutual reference, see routes.module.ts.
+    forwardRef(() => RoutesModule),
   ],
   controllers: [ClientsController],
   providers: [

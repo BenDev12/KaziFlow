@@ -42,6 +42,13 @@ export interface ClientProps {
   preferredVisitTime: VisitTimeSlot | null;
   /** Which agent's route this office is on, if any — see Route entity. Set via assignRoute(), not applyPatch(). */
   routeId: string | null;
+  /**
+   * When the office was put on its CURRENT route — not when it was first
+   * ever visited. A visit only counts toward "this round of the route is
+   * done" if it happened on/after this timestamp, so re-adding an office
+   * to a new route doesn't instantly count it as already handled.
+   */
+  routeAddedAt: Date | null;
 }
 
 export interface ClientPatch {
@@ -106,6 +113,7 @@ export class Client extends Entity<ClientProps> {
         })),
         preferredVisitTime: props.preferredVisitTime ?? null,
         routeId: null,
+        routeAddedAt: null,
       },
       id,
     );
@@ -152,6 +160,7 @@ export class Client extends Entity<ClientProps> {
 
   assignRoute(routeId: string | null): void {
     this.props.routeId = routeId;
+    this.props.routeAddedAt = routeId ? new Date() : null;
   }
 
   /** Computed server-side so every client of the UI (web, future mobile) agrees on "overdue". */
@@ -216,5 +225,9 @@ export class Client extends Entity<ClientProps> {
 
   get routeId(): string | null {
     return this.props.routeId;
+  }
+
+  get routeAddedAt(): Date | null {
+    return this.props.routeAddedAt;
   }
 }
