@@ -40,6 +40,8 @@ export interface ClientProps {
   status: ClientStatus;
   contacts: Contact[];
   preferredVisitTime: VisitTimeSlot | null;
+  /** Which agent's route this office is on, if any — see Route entity. Set via assignRoute(), not applyPatch(). */
+  routeId: string | null;
 }
 
 export interface ClientPatch {
@@ -103,6 +105,7 @@ export class Client extends Entity<ClientProps> {
           phone: c.phone ?? null,
         })),
         preferredVisitTime: props.preferredVisitTime ?? null,
+        routeId: null,
       },
       id,
     );
@@ -145,6 +148,10 @@ export class Client extends Entity<ClientProps> {
     this.props.lastVisit = visitDate;
     this.props.lastNotes = notes;
     this.props.status = 'active';
+  }
+
+  assignRoute(routeId: string | null): void {
+    this.props.routeId = routeId;
   }
 
   /** Computed server-side so every client of the UI (web, future mobile) agrees on "overdue". */
@@ -205,5 +212,9 @@ export class Client extends Entity<ClientProps> {
 
   get preferredVisitTime(): VisitTimeSlot | null {
     return this.props.preferredVisitTime;
+  }
+
+  get routeId(): string | null {
+    return this.props.routeId;
   }
 }

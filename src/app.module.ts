@@ -10,6 +10,7 @@ import { DepartmentsModule } from './modules/departments/departments.module';
 import { FlagsModule } from './modules/flags/flags.module';
 import { IamModule } from './modules/iam/iam.module';
 import { IssuesModule } from './modules/issues/issues.module';
+import { RoutesModule } from './modules/routes/routes.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { WorkflowTemplatesModule } from './modules/workflow-templates/workflow-templates.module';
 import { DatabaseModule } from './shared/infrastructure/database/database.module';
@@ -29,6 +30,7 @@ import { TenantContextMiddleware } from './shared/infrastructure/tenancy/tenant-
     IamModule,
     DepartmentsModule,
     ClientsModule,
+    RoutesModule,
     ActivitiesModule,
     IssuesModule,
     WorkflowTemplatesModule,

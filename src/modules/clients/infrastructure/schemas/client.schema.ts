@@ -74,6 +74,9 @@ export class ClientDocument extends Document<string> {
   @Prop({ type: String, enum: ['morning', 'midday', 'afternoon'], default: null })
   preferredVisitTime!: VisitTimeSlot | null;
 
+  @Prop({ type: String, default: null })
+  routeId!: string | null;
+
   createdAt!: Date;
   updatedAt!: Date;
 }
@@ -83,3 +86,4 @@ ClientSchema.index({ orgId: 1, name: 1 });
 ClientSchema.index({ orgId: 1, priority: 1 });
 ClientSchema.index({ orgId: 1, callCycle: 1 });
 ClientSchema.index({ orgId: 1, departmentId: 1 });
+ClientSchema.index({ orgId: 1, routeId: 1 });

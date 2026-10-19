@@ -63,6 +63,7 @@ export class ClientMongoRepository
       status: client.status,
       contacts: client.contacts,
       preferredVisitTime: client.preferredVisitTime,
+      routeId: client.routeId,
     });
     return this.toDomain(doc);
   }
@@ -83,6 +84,7 @@ export class ClientMongoRepository
         status: client.status,
         contacts: client.contacts,
         preferredVisitTime: client.preferredVisitTime,
+        routeId: client.routeId,
       },
     );
     if (!doc) throw new Error(`Cannot save Client "${client.id}": document not found`);
@@ -109,6 +111,7 @@ export class ClientMongoRepository
         status: doc.status,
         contacts: doc.contacts,
         preferredVisitTime: doc.preferredVisitTime,
+        routeId: doc.routeId,
       },
       doc._id,
     );

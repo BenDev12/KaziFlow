@@ -17,11 +17,15 @@ import { CurrentUser } from '../../../../shared/interface/decorators/current-use
 import { JwtAuthGuard } from '../../../../shared/interface/guards/jwt-auth.guard';
 import { RequireOrgGuard } from '../../../../shared/interface/guards/require-org.guard';
 import { JwtPayload } from '../../../../shared/infrastructure/tenancy/jwt-payload.interface';
-import { ForbiddenError } from '../../../../shared/domain/errors/domain-error';
+import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors/domain-error';
 import {
   DEPARTMENT_REPOSITORY,
   DepartmentRepository,
 } from '../../../departments/domain/repositories/department.repository.port';
+import {
+  ROUTE_REPOSITORY,
+  RouteRepository,
+} from '../../../routes/domain/repositories/route.repository.port';
 import { Client } from '../../domain/entities/client.entity';
 import { canAccessOffices } from '../../application/office-access';
 import { CreateClientUseCase } from '../../application/use-cases/create-client.use-case';
@@ -33,10 +37,12 @@ import {
 } from '../../application/use-cases/list-clients.use-case';
 import { UpdateClientUseCase } from '../../application/use-cases/update-client.use-case';
 import { RecordClientVisitUseCase } from '../../application/use-cases/record-client-visit.use-case';
+import { SetClientRouteUseCase } from '../../application/use-cases/set-client-route.use-case';
 import { CreateClientDto } from '../dto/create-client.dto';
 import { ListClientsQueryDto } from '../dto/list-clients.query.dto';
 import { UpdateClientDto } from '../dto/update-client.dto';
 import { RecordVisitDto } from '../dto/record-visit.dto';
+import { AssignRouteDto } from '../dto/assign-route.dto';
 
 function toResponse(client: Client, overdue?: boolean) {
   return {
@@ -54,6 +60,7 @@ function toResponse(client: Client, overdue?: boolean) {
     status: client.status,
     contacts: client.contacts,
     preferredVisitTime: client.preferredVisitTime,
+    routeId: client.routeId,
     ...(overdue !== undefined ? { overdue } : {}),
   };
 }
@@ -69,7 +76,9 @@ export class ClientsController {
     private readonly listClientsUseCase: ListClientsUseCase,
     private readonly getClientUseCase: GetClientUseCase,
     private readonly recordClientVisitUseCase: RecordClientVisitUseCase,
+    private readonly setClientRouteUseCase: SetClientRouteUseCase,
     @Inject(DEPARTMENT_REPOSITORY) private readonly departments: DepartmentRepository,
+    @Inject(ROUTE_REPOSITORY) private readonly routes: RouteRepository,
   ) {}
 
   /**
@@ -133,6 +142,40 @@ export class ClientsController {
   ) {
     await this.assertCanAccessOffices(user);
     const client = await this.recordClientVisitUseCase.execute({ clientId: id, notes: dto.notes });
+    return toResponse(client);
+  }
+
+  /**
+   * Adding/removing an office from a route. Agents may only touch their own
+   * route (both the route they're adding to, and the one they're removing
+   * from) — org_admin/manager can move any office onto any route.
+   */
+  @Patch(':id/assign-route')
+  async assignRoute(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: AssignRouteDto,
+  ) {
+    await this.assertCanAccessOffices(user);
+    const canManage = user.role === 'org_admin' || user.role === 'manager';
+
+    if (dto.routeId !== null) {
+      const route = await this.routes.findById(dto.routeId);
+      if (!route) throw new NotFoundError('Route', dto.routeId);
+      if (!canManage && route.agentId !== user.sub) {
+        throw new ForbiddenError('You can only add offices to your own route.');
+      }
+    } else if (!canManage) {
+      const current = await this.getClientUseCase.execute({ clientId: id });
+      if (current.routeId) {
+        const route = await this.routes.findById(current.routeId);
+        if (route && route.agentId !== user.sub) {
+          throw new ForbiddenError('You can only remove offices from your own route.');
+        }
+      }
+    }
+
+    const client = await this.setClientRouteUseCase.execute({ clientId: id, routeId: dto.routeId });
     return toResponse(client);
   }
 }
