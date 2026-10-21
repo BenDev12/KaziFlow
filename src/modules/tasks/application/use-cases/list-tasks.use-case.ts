@@ -12,6 +12,7 @@ import {
 export interface ListTasksInput extends TaskListFilter {
   requestingRole: UserRole;
   requestingDepartmentId: string | null;
+  requestingUserId: string;
 }
 
 @Injectable()
@@ -19,10 +20,11 @@ export class ListTasksUseCase implements UseCase<ListTasksInput, Task[]> {
   constructor(@Inject(TASK_REPOSITORY) private readonly tasks: TaskRepository) {}
 
   async execute(input: ListTasksInput): Promise<Task[]> {
-    const { requestingRole, requestingDepartmentId, ...filter } = input;
+    const { requestingRole, requestingDepartmentId, requestingUserId, ...filter } = input;
     return this.tasks.findAll({
       ...filter,
       departmentId: departmentScopeFor(requestingRole, requestingDepartmentId),
+      visibleToUserId: requestingUserId,
     });
   }
 }

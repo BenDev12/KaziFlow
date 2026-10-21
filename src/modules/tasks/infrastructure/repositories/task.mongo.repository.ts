@@ -28,8 +28,16 @@ export class TaskMongoRepository
     if (filter.departmentId) {
       // Records with no department (created before departments existed, or
       // by an unassigned member) stay visible to everyone — only a record
-      // explicitly tagged with a DIFFERENT department is hidden.
-      query.$or = [{ departmentId: filter.departmentId }, { departmentId: null }];
+      // explicitly tagged with a DIFFERENT department is hidden. The
+      // original requester (agentId) stays visible regardless of which
+      // department a workflow's current stage has moved to — see
+      // TaskListFilter.visibleToUserId.
+      const visibility: FilterQuery<TaskDocument>[] = [
+        { departmentId: filter.departmentId },
+        { departmentId: null },
+      ];
+      if (filter.visibleToUserId) visibility.push({ agentId: filter.visibleToUserId });
+      query.$or = visibility;
     }
     const docs = await this.findManyScoped(query, { dueDate: 1 });
     return docs.map((doc) => this.toDomain(doc));

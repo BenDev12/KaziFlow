@@ -128,6 +128,7 @@ export class TasksController {
       ...query,
       requestingRole: user.role,
       requestingDepartmentId: user.departmentId,
+      requestingUserId: user.sub,
     });
     return this.toResponseMany(tasks);
   }

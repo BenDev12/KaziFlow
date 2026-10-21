@@ -18,8 +18,10 @@ export interface AddTaskNoteInput {
 
 /**
  * Pure context, not a workflow gate — anyone who can already see the task
- * (same department-scoped visibility as the task list, org_admin included)
- * may add a note, at any status. No extra role check beyond that.
+ * (same department-scoped visibility as the task list, org_admin included,
+ * plus the original requester even once it's moved to another department —
+ * see TaskListFilter.visibleToUserId) may add a note, at any status. No
+ * extra role check beyond that.
  */
 @Injectable()
 export class AddTaskNoteUseCase implements UseCase<AddTaskNoteInput, Task> {
@@ -27,13 +29,15 @@ export class AddTaskNoteUseCase implements UseCase<AddTaskNoteInput, Task> {
 
   async execute(input: AddTaskNoteInput): Promise<Task> {
     const task = await this.tasks.findById(input.taskId);
+    const isRequester = task?.agentId === input.requestingUserId;
     if (
       !task ||
-      !canAccessDepartmentScopedRecord(
-        task.departmentId,
-        input.requestingRole,
-        input.requestingDepartmentId,
-      )
+      (!isRequester &&
+        !canAccessDepartmentScopedRecord(
+          task.departmentId,
+          input.requestingRole,
+          input.requestingDepartmentId,
+        ))
     ) {
       throw new NotFoundError('Task', input.taskId);
     }
