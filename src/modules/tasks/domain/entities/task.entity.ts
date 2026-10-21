@@ -26,6 +26,24 @@ export interface TaskNote {
   createdAt: Date;
 }
 
+export type TaskHistoryEventType =
+  | 'submitted_for_approval'
+  | 'approved'
+  | 'rejected'
+  | 'completed'
+  | 'stage_advanced';
+
+/** A system-recorded step in a task's (and, by extension, a workflow instance's) lifecycle — not user-editable, unlike TaskNote. */
+export interface TaskHistoryEntry {
+  id: string;
+  type: TaskHistoryEventType;
+  byId: string;
+  byName: string;
+  /** A rejection reason, or short context for 'stage_advanced' (which stage this came from). Null for plain approve/complete/submit. */
+  note: string | null;
+  createdAt: Date;
+}
+
 export interface TaskProps {
   /** Null for a general task not tied to any specific client/office. */
   clientId: string | null;
@@ -54,6 +72,8 @@ export interface TaskProps {
   links: TaskLink[];
   /** A running log of context/questions — anyone who can see the task may add one; it never changes status. */
   notes: TaskNote[];
+  /** System-recorded lifecycle events (submit/approve/reject/complete/advance) — see TaskHistoryEntry. */
+  history: TaskHistoryEntry[];
   /** The task whose completion/approval spawned this one, if any (workflow provenance). */
   parentTaskId: string | null;
   submittedForApprovalById: string | null;
@@ -91,6 +111,7 @@ export class Task extends AggregateRoot<TaskProps> {
       assignedToName?: string | null;
       links?: TaskLink[];
       parentTaskId?: string | null;
+      history?: TaskHistoryEntry[];
     },
     id: string,
   ): Task {
@@ -118,6 +139,7 @@ export class Task extends AggregateRoot<TaskProps> {
         assignedToName: props.assignedToName ?? null,
         links: props.links ?? [],
         notes: [],
+        history: props.history ?? [],
         parentTaskId: props.parentTaskId ?? null,
         submittedForApprovalById: null,
         submittedForApprovalByName: null,
@@ -165,7 +187,7 @@ export class Task extends AggregateRoot<TaskProps> {
   }
 
   /** The assignee's path when their stage requires approval — the work is done, but not yet final. */
-  submitForApproval(input: { byId: string; byName: string }): void {
+  submitForApproval(input: { byId: string; byName: string; historyId: string }): void {
     if (this.props.status !== 'pending') {
       throw new ConflictError('This task is no longer pending');
     }
@@ -173,10 +195,18 @@ export class Task extends AggregateRoot<TaskProps> {
     this.props.submittedForApprovalById = input.byId;
     this.props.submittedForApprovalByName = input.byName;
     this.props.submittedForApprovalAt = new Date();
+    this.props.history.push({
+      id: input.historyId,
+      type: 'submitted_for_approval',
+      byId: input.byId,
+      byName: input.byName,
+      note: null,
+      createdAt: this.props.submittedForApprovalAt,
+    });
   }
 
   /** A department manager (or org_admin) signing off on a submitted task — finishes it and fires the same event complete() does. */
-  approve(input: { byId: string; byName: string; orgId: string }): void {
+  approve(input: { byId: string; byName: string; orgId: string; historyId: string }): void {
     if (this.props.status !== 'awaiting_approval') {
       throw new ConflictError('This task is not awaiting approval');
     }
@@ -184,10 +214,46 @@ export class Task extends AggregateRoot<TaskProps> {
     this.props.completedById = input.byId;
     this.props.completedByName = input.byName;
     this.props.completedAt = new Date();
+    this.props.history.push({
+      id: input.historyId,
+      type: 'approved',
+      byId: input.byId,
+      byName: input.byName,
+      note: null,
+      createdAt: this.props.completedAt,
+    });
 
     this.addDomainEvent(
       new TaskCompletedEvent(input.orgId, this.id, this.props.clientId, input.byId),
     );
+  }
+
+  /**
+   * A department manager (or org_admin) sends a submitted task back — the
+   * opposite of approve(). Goes back to 'pending' (not a dedicated
+   * "rejected" status) so the same assignee can fix it and resubmit; the
+   * reason lives in the history entry, not a dedicated field, so it reads
+   * naturally alongside every other step in the trail.
+   */
+  reject(input: { byId: string; byName: string; reason: string; historyId: string }): void {
+    if (this.props.status !== 'awaiting_approval') {
+      throw new ConflictError('This task is not awaiting approval');
+    }
+    if (!input.reason.trim()) {
+      throw new ValidationError('A reason is required to reject a task');
+    }
+    this.props.status = 'pending';
+    this.props.submittedForApprovalById = null;
+    this.props.submittedForApprovalByName = null;
+    this.props.submittedForApprovalAt = null;
+    this.props.history.push({
+      id: input.historyId,
+      type: 'rejected',
+      byId: input.byId,
+      byName: input.byName,
+      note: input.reason.trim(),
+      createdAt: new Date(),
+    });
   }
 
   /**
@@ -196,7 +262,7 @@ export class Task extends AggregateRoot<TaskProps> {
    * (skips the approval step entirely, since their own completion already
    * carries that authority).
    */
-  complete(input: { byId: string; byName: string; orgId: string }): void {
+  complete(input: { byId: string; byName: string; orgId: string; historyId: string }): void {
     if (this.props.status === 'completed') {
       throw new ConflictError('This task is already completed');
     }
@@ -208,6 +274,14 @@ export class Task extends AggregateRoot<TaskProps> {
     this.props.completedById = input.byId;
     this.props.completedByName = input.byName;
     this.props.completedAt = new Date();
+    this.props.history.push({
+      id: input.historyId,
+      type: 'completed',
+      byId: input.byId,
+      byName: input.byName,
+      note: null,
+      createdAt: this.props.completedAt,
+    });
 
     this.addDomainEvent(
       new TaskCompletedEvent(input.orgId, this.id, this.props.clientId, input.byId),
@@ -292,6 +366,10 @@ export class Task extends AggregateRoot<TaskProps> {
 
   get notes(): TaskNote[] {
     return this.props.notes;
+  }
+
+  get history(): TaskHistoryEntry[] {
+    return this.props.history;
   }
 
   get parentTaskId(): string | null {

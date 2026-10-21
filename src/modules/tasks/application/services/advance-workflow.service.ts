@@ -60,6 +60,18 @@ export class AdvanceWorkflowService {
             done: false,
           })),
           parentTaskId: finishedTask.id,
+          // A visible starting point in this task's own history — who/what
+          // finished the previous stage that handed this one off.
+          history: [
+            {
+              id: randomUUID(),
+              type: 'stage_advanced',
+              byId: finishedTask.completedById ?? finishedTask.agentId,
+              byName: finishedTask.completedByName ?? finishedTask.agentName,
+              note: `Advanced from "${stage.name}"`,
+              createdAt: new Date(),
+            },
+          ],
         },
         randomUUID(),
       );

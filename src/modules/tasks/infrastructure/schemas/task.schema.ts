@@ -4,7 +4,12 @@ import {
   baseSchemaOptions,
   orgScopedField,
 } from '../../../../shared/infrastructure/database/base.schema';
-import { TaskPriority, TaskSource, TaskStatus } from '../../domain/entities/task.entity';
+import {
+  TaskHistoryEventType,
+  TaskPriority,
+  TaskSource,
+  TaskStatus,
+} from '../../domain/entities/task.entity';
 
 @Schema({ _id: false })
 class ChecklistItemSubdocument {
@@ -40,6 +45,31 @@ class TaskNoteSubdocument {
 
   @Prop({ type: String, required: true, trim: true })
   text!: string;
+
+  @Prop({ type: Date, required: true })
+  createdAt!: Date;
+}
+
+@Schema({ _id: false })
+class TaskHistorySubdocument {
+  @Prop({ type: String, required: true })
+  id!: string;
+
+  @Prop({
+    type: String,
+    required: true,
+    enum: ['submitted_for_approval', 'approved', 'rejected', 'completed', 'stage_advanced'],
+  })
+  type!: TaskHistoryEventType;
+
+  @Prop({ type: String, required: true })
+  byId!: string;
+
+  @Prop({ required: true, trim: true })
+  byName!: string;
+
+  @Prop({ type: String, default: null, trim: true })
+  note!: string | null;
 
   @Prop({ type: Date, required: true })
   createdAt!: Date;
@@ -116,6 +146,9 @@ export class TaskDocument extends Document<string> {
 
   @Prop({ type: [TaskNoteSubdocument], default: [] })
   notes!: TaskNoteSubdocument[];
+
+  @Prop({ type: [TaskHistorySubdocument], default: [] })
+  history!: TaskHistorySubdocument[];
 
   @Prop({ type: String, default: null })
   parentTaskId!: string | null;

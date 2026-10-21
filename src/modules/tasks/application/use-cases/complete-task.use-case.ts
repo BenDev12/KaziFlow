@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { UseCase } from '../../../../shared/application/use-case.interface';
 import { EVENT_BUS, EventBus } from '../../../../shared/application/ports/event-bus.port';
 import { canAccessDepartmentScopedRecord } from '../../../../shared/application/department-scope';
@@ -59,11 +60,11 @@ export class CompleteTaskUseCase implements UseCase<CompleteTaskInput, Task> {
     const orgId = TenantContext.get().orgId;
 
     if (task.requiresApproval && isAssignee && !isDeptManager && !isAdmin) {
-      task.submitForApproval({ byId: input.byId, byName: input.byName });
+      task.submitForApproval({ byId: input.byId, byName: input.byName, historyId: randomUUID() });
       return this.tasks.save(task);
     }
 
-    task.complete({ byId: input.byId, byName: input.byName, orgId });
+    task.complete({ byId: input.byId, byName: input.byName, orgId, historyId: randomUUID() });
     const saved = await this.tasks.save(task);
 
     await this.eventBus.publishAll(task.pullDomainEvents());
