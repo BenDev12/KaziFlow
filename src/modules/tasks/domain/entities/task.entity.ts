@@ -3,6 +3,9 @@ import { ConflictError, ValidationError } from '../../../../shared/domain/errors
 import { TaskCompletedEvent } from '../events/task-completed.event';
 
 export type TaskStatus = 'pending' | 'awaiting_approval' | 'completed';
+export type TaskPriority = 'normal' | 'urgent';
+/** Where the work came from — captures the basic call/email/walk-in logging distinct from a full "request" entity. */
+export type TaskSource = 'internal' | 'phone_call' | 'email' | 'walk_in' | 'whatsapp';
 
 export interface ChecklistItem {
   id: string;
@@ -35,6 +38,8 @@ export interface TaskProps {
   /** Optional detail text — the task's headline lives in `title`. */
   description: string | null;
   dueDate: Date | null;
+  priority: TaskPriority;
+  source: TaskSource;
   /** Nullable because a task spawned by workflow advancement isn't tied to a fresh visit log — see parentTaskId instead. */
   activityLogId: string | null;
   status: TaskStatus;
@@ -57,6 +62,7 @@ export interface TaskProps {
   completedById: string | null;
   completedByName: string | null;
   completedAt: Date | null;
+  createdAt: Date;
 }
 
 export class Task extends AggregateRoot<TaskProps> {
@@ -74,6 +80,8 @@ export class Task extends AggregateRoot<TaskProps> {
       title: string;
       description?: string | null;
       dueDate?: Date | null;
+      priority?: TaskPriority;
+      source?: TaskSource;
       activityLogId: string | null;
       templateId?: string | null;
       stageId?: string | null;
@@ -98,6 +106,8 @@ export class Task extends AggregateRoot<TaskProps> {
         title: props.title.trim(),
         description: props.description?.trim() || null,
         dueDate: props.dueDate ?? null,
+        priority: props.priority ?? 'normal',
+        source: props.source ?? 'internal',
         activityLogId: props.activityLogId,
         status: 'pending',
         templateId: props.templateId ?? null,
@@ -115,6 +125,7 @@ export class Task extends AggregateRoot<TaskProps> {
         completedById: null,
         completedByName: null,
         completedAt: null,
+        createdAt: new Date(),
       },
       id,
     );
@@ -235,6 +246,14 @@ export class Task extends AggregateRoot<TaskProps> {
     return this.props.dueDate;
   }
 
+  get priority(): TaskPriority {
+    return this.props.priority;
+  }
+
+  get source(): TaskSource {
+    return this.props.source;
+  }
+
   get activityLogId(): string | null {
     return this.props.activityLogId;
   }
@@ -301,5 +320,9 @@ export class Task extends AggregateRoot<TaskProps> {
 
   get completedAt(): Date | null {
     return this.props.completedAt;
+  }
+
+  get createdAt(): Date {
+    return this.props.createdAt;
   }
 }

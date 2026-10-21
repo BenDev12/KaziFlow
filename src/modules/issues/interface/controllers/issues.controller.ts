@@ -40,6 +40,7 @@ function toResponse(issue: Issue) {
     resolvedById: issue.resolvedById,
     resolvedByName: issue.resolvedByName,
     resolvedAt: issue.resolvedAt,
+    createdAt: issue.createdAt,
   };
 }
 

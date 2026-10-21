@@ -2,12 +2,17 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsEnum,
   IsISO8601,
   IsOptional,
   IsString,
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { TaskPriority, TaskSource } from '../../domain/entities/task.entity';
+
+const TASK_PRIORITIES: TaskPriority[] = ['normal', 'urgent'];
+const TASK_SOURCES: TaskSource[] = ['internal', 'phone_call', 'email', 'walk_in', 'whatsapp'];
 
 export class TaskLinkDto {
   @ApiPropertyOptional()
@@ -62,6 +67,16 @@ export class CreateTaskDto {
   @IsOptional()
   @IsISO8601()
   dueDate?: string;
+
+  @ApiPropertyOptional({ enum: TASK_PRIORITIES, description: 'Defaults to "normal".' })
+  @IsOptional()
+  @IsEnum(TASK_PRIORITIES)
+  priority?: TaskPriority;
+
+  @ApiPropertyOptional({ enum: TASK_SOURCES, description: 'Where this came from. Defaults to "internal".' })
+  @IsOptional()
+  @IsEnum(TASK_SOURCES)
+  source?: TaskSource;
 
   @ApiPropertyOptional({
     description:

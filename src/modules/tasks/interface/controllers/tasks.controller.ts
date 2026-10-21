@@ -39,6 +39,8 @@ function toResponse(task: Task) {
     title: task.title,
     description: task.description,
     dueDate: task.dueDate,
+    priority: task.priority,
+    source: task.source,
     activityLogId: task.activityLogId,
     status: task.status,
     templateId: task.templateId,
@@ -56,6 +58,7 @@ function toResponse(task: Task) {
     completedById: task.completedById,
     completedByName: task.completedByName,
     completedAt: task.completedAt,
+    createdAt: task.createdAt,
   };
 }
 

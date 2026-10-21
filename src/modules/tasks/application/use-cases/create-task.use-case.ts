@@ -19,7 +19,13 @@ import {
   WORKFLOW_TEMPLATE_REPOSITORY,
   WorkflowTemplateRepository,
 } from '../../../workflow-templates/domain/repositories/workflow-template.repository.port';
-import { ChecklistItem, Task, TaskLink } from '../../domain/entities/task.entity';
+import {
+  ChecklistItem,
+  Task,
+  TaskLink,
+  TaskPriority,
+  TaskSource,
+} from '../../domain/entities/task.entity';
 import { TASK_REPOSITORY, TaskRepository } from '../../domain/repositories/task.repository.port';
 
 export interface CreateTaskInput {
@@ -36,6 +42,8 @@ export interface CreateTaskInput {
   requestingRole: UserRole;
   requestingDepartmentId: string | null;
   dueDate?: Date;
+  priority?: TaskPriority;
+  source?: TaskSource;
   links?: TaskLink[];
   /** Omit for a task not tied to a specific logged visit (e.g. one started from a template). */
   activityLogId?: string;
@@ -124,6 +132,8 @@ export class CreateTaskUseCase implements UseCase<CreateTaskInput, Task> {
         title: input.title,
         description: input.description,
         dueDate: input.dueDate,
+        priority: input.priority,
+        source: input.source,
         activityLogId: input.activityLogId ?? null,
         templateId,
         stageId,

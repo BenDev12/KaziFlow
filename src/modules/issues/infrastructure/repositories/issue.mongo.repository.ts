@@ -85,6 +85,7 @@ export class IssueMongoRepository
         resolvedById: doc.resolvedById,
         resolvedByName: doc.resolvedByName,
         resolvedAt: doc.resolvedAt,
+        createdAt: doc.createdAt,
       },
       doc._id,
     );

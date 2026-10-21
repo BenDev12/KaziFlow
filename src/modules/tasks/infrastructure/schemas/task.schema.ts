@@ -4,7 +4,7 @@ import {
   baseSchemaOptions,
   orgScopedField,
 } from '../../../../shared/infrastructure/database/base.schema';
-import { TaskStatus } from '../../domain/entities/task.entity';
+import { TaskPriority, TaskSource, TaskStatus } from '../../domain/entities/task.entity';
 
 @Schema({ _id: false })
 class ChecklistItemSubdocument {
@@ -76,6 +76,16 @@ export class TaskDocument extends Document<string> {
 
   @Prop({ type: Date, default: null })
   dueDate!: Date | null;
+
+  @Prop({ required: true, enum: ['normal', 'urgent'], default: 'normal' })
+  priority!: TaskPriority;
+
+  @Prop({
+    required: true,
+    enum: ['internal', 'phone_call', 'email', 'walk_in', 'whatsapp'],
+    default: 'internal',
+  })
+  source!: TaskSource;
 
   @Prop({ type: String, default: null })
   activityLogId!: string | null;

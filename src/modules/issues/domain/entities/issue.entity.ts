@@ -19,6 +19,7 @@ export interface IssueProps {
   resolvedById: string | null;
   resolvedByName: string | null;
   resolvedAt: Date | null;
+  createdAt: Date;
 }
 
 export class Issue extends AggregateRoot<IssueProps> {
@@ -50,6 +51,7 @@ export class Issue extends AggregateRoot<IssueProps> {
         resolvedById: null,
         resolvedByName: null,
         resolvedAt: null,
+        createdAt: new Date(),
       },
       id,
     );
@@ -126,5 +128,9 @@ export class Issue extends AggregateRoot<IssueProps> {
 
   get resolvedAt(): Date | null {
     return this.props.resolvedAt;
+  }
+
+  get createdAt(): Date {
+    return this.props.createdAt;
   }
 }
