@@ -17,7 +17,13 @@ export interface ApproveTaskInput {
   requestingDepartmentId: string | null;
 }
 
-/** Signs off on a task the assignee already submitted (see Task.submitForApproval). Manager-of-department or org_admin only. */
+/**
+ * Signs off on a task the assignee already submitted (see Task.submitForApproval).
+ * Manager-of-department or org_admin only — deliberately allows approving
+ * your own submission (e.g. a department with only one manager, who is also
+ * the assignee): the submit→approve click pair is the checkpoint, not a
+ * requirement that a different person be on each end of it.
+ */
 @Injectable()
 export class ApproveTaskUseCase implements UseCase<ApproveTaskInput, Task> {
   constructor(

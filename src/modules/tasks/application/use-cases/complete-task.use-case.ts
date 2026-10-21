@@ -20,10 +20,12 @@ export interface CompleteTaskInput {
 /**
  * Three parties can close a task out: the person it's assigned to, the
  * manager of the department that currently owns it, or org_admin (always).
- * A manager/admin closing it directly always finishes it outright — their
- * own authority already covers whatever a separate approval step would have
- * confirmed. Only the assignee's own completion is held for approval, and
- * only when the stage calls for it.
+ * `requiresApproval` applies uniformly to whoever calls this — including a
+ * manager or admin completing their own work — so a stage that calls for
+ * approval always goes through submit-then-approve, with no role-based
+ * bypass. The manager/admin's authority shows up at the *approve* step
+ * instead (see ApproveTaskUseCase), where they can approve a submission of
+ * their own — a deliberate second click, not a silent skip.
  */
 @Injectable()
 export class CompleteTaskUseCase implements UseCase<CompleteTaskInput, Task> {
@@ -59,7 +61,7 @@ export class CompleteTaskUseCase implements UseCase<CompleteTaskInput, Task> {
 
     const orgId = TenantContext.get().orgId;
 
-    if (task.requiresApproval && isAssignee && !isDeptManager && !isAdmin) {
+    if (task.requiresApproval) {
       task.submitForApproval({ byId: input.byId, byName: input.byName, historyId: randomUUID() });
       return this.tasks.save(task);
     }
