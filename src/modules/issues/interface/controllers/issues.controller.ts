@@ -66,7 +66,9 @@ export class IssuesController {
     return toResponse(issue);
   }
 
-  @Roles('org_admin', 'manager')
+  // Open to every department member, not just managers/admins — same
+  // visibility rule as Tasks (see TasksController). Resolving one stays
+  // manager/admin-only, below.
   @Get()
   async list(@CurrentUser() user: JwtPayload, @Query() query: ListIssuesQueryDto) {
     const issues = await this.listIssuesUseCase.execute({
