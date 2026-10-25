@@ -9,6 +9,7 @@ export interface UserProps {
   role: UserRole;
   orgId: string | null;
   departmentId: string | null;
+  createdAt: Date;
 }
 
 export class User extends Entity<UserProps> {
@@ -34,6 +35,7 @@ export class User extends Entity<UserProps> {
         role: 'org_admin',
         orgId: null,
         departmentId: null,
+        createdAt: new Date(),
       },
       id,
     );
@@ -60,6 +62,7 @@ export class User extends Entity<UserProps> {
         role: props.role,
         orgId: props.orgId,
         departmentId: props.departmentId,
+        createdAt: new Date(),
       },
       id,
     );
@@ -108,5 +111,9 @@ export class User extends Entity<UserProps> {
 
   get departmentId(): string | null {
     return this.props.departmentId;
+  }
+
+  get createdAt(): Date {
+    return this.props.createdAt;
   }
 }

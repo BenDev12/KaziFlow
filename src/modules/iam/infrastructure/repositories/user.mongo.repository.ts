@@ -70,6 +70,7 @@ export class UserMongoRepository implements UserRepository {
         role: doc.role,
         orgId: doc.orgId,
         departmentId: doc.departmentId,
+        createdAt: doc.createdAt,
       },
       doc._id,
     );

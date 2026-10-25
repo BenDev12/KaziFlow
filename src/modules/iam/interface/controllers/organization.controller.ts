@@ -47,6 +47,7 @@ export class OrganizationController {
       email: m.email,
       role: m.role,
       departmentId: m.departmentId,
+      createdAt: m.createdAt,
     }));
   }
 }
