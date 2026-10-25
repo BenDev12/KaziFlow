@@ -6,5 +6,6 @@ export interface WorkflowTemplateRepository {
   findById(id: string): Promise<WorkflowTemplate | null>;
   findAll(): Promise<WorkflowTemplate[]>;
   create(template: WorkflowTemplate): Promise<WorkflowTemplate>;
+  save(template: WorkflowTemplate): Promise<WorkflowTemplate>;
   delete(id: string): Promise<boolean>;
 }

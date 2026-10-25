@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -20,6 +21,7 @@ import { WorkflowTemplate } from '../../domain/entities/workflow-template.entity
 import { CreateWorkflowTemplateUseCase } from '../../application/use-cases/create-workflow-template.use-case';
 import { DeleteWorkflowTemplateUseCase } from '../../application/use-cases/delete-workflow-template.use-case';
 import { ListWorkflowTemplatesUseCase } from '../../application/use-cases/list-workflow-templates.use-case';
+import { UpdateWorkflowTemplateUseCase } from '../../application/use-cases/update-workflow-template.use-case';
 import { CreateWorkflowTemplateDto } from '../dto/create-workflow-template.dto';
 
 function toResponse(template: WorkflowTemplate) {
@@ -32,7 +34,7 @@ function toResponse(template: WorkflowTemplate) {
   };
 }
 
-/** Creating/deleting SOPs is an org_admin privilege; listing is open to every onboarded member (the create-task picker needs it). */
+/** Creating/editing/deleting SOPs is an org_admin privilege; listing is open to every onboarded member (the create-task picker needs it). */
 @ApiTags('workflow-templates')
 @Controller('v1/workflow-templates')
 @UseGuards(JwtAuthGuard, RequireOrgGuard, RolesGuard)
@@ -41,6 +43,7 @@ export class WorkflowTemplatesController {
     private readonly createWorkflowTemplateUseCase: CreateWorkflowTemplateUseCase,
     private readonly listWorkflowTemplatesUseCase: ListWorkflowTemplatesUseCase,
     private readonly deleteWorkflowTemplateUseCase: DeleteWorkflowTemplateUseCase,
+    private readonly updateWorkflowTemplateUseCase: UpdateWorkflowTemplateUseCase,
   ) {}
 
   @Roles('org_admin')
@@ -60,6 +63,18 @@ export class WorkflowTemplatesController {
   async list() {
     const templates = await this.listWorkflowTemplatesUseCase.execute();
     return templates.map(toResponse);
+  }
+
+  @Roles('org_admin')
+  @Put(':id')
+  async update(@Param('id') id: string, @Body() dto: CreateWorkflowTemplateDto) {
+    const template = await this.updateWorkflowTemplateUseCase.execute({
+      templateId: id,
+      name: dto.name,
+      entryStageId: dto.entryStageId,
+      stages: dto.stages,
+    });
+    return toResponse(template);
   }
 
   @Roles('org_admin')

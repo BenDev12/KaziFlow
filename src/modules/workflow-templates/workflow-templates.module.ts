@@ -4,6 +4,7 @@ import { WORKFLOW_TEMPLATE_REPOSITORY } from './domain/repositories/workflow-tem
 import { CreateWorkflowTemplateUseCase } from './application/use-cases/create-workflow-template.use-case';
 import { DeleteWorkflowTemplateUseCase } from './application/use-cases/delete-workflow-template.use-case';
 import { ListWorkflowTemplatesUseCase } from './application/use-cases/list-workflow-templates.use-case';
+import { UpdateWorkflowTemplateUseCase } from './application/use-cases/update-workflow-template.use-case';
 import {
   WorkflowTemplateDocument,
   WorkflowTemplateSchema,
@@ -23,6 +24,7 @@ import { WorkflowTemplatesController } from './interface/controllers/workflow-te
     CreateWorkflowTemplateUseCase,
     ListWorkflowTemplatesUseCase,
     DeleteWorkflowTemplateUseCase,
+    UpdateWorkflowTemplateUseCase,
   ],
   exports: [WORKFLOW_TEMPLATE_REPOSITORY],
 })

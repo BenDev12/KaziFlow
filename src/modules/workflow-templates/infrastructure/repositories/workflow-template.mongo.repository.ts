@@ -38,6 +38,15 @@ export class WorkflowTemplateMongoRepository
     return this.toDomain(doc);
   }
 
+  async save(template: WorkflowTemplate): Promise<WorkflowTemplate> {
+    const doc = await this.updateOneScoped(
+      { _id: template.id },
+      { name: template.name, entryStageId: template.entryStageId, stages: template.stages },
+    );
+    if (!doc) throw new Error(`Cannot save WorkflowTemplate "${template.id}": document not found`);
+    return this.toDomain(doc);
+  }
+
   async delete(id: string): Promise<boolean> {
     return this.deleteOneScoped({ _id: id });
   }
@@ -55,6 +64,7 @@ export class WorkflowTemplateMongoRepository
           requiresApproval: s.requiresApproval,
           checklistTemplate: s.checklistTemplate,
           nextStageIds: s.nextStageIds,
+          position: s.position?.x != null && s.position?.y != null ? s.position : null,
         })),
         createdAt: doc.createdAt,
       },

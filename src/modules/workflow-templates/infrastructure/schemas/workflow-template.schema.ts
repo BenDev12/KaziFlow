@@ -24,6 +24,9 @@ class WorkflowStageSubdocument {
 
   @Prop({ type: [String], default: [] })
   nextStageIds!: string[];
+
+  @Prop({ type: { _id: false, x: Number, y: Number }, default: null })
+  position!: { x: number; y: number } | null;
 }
 
 @Schema(baseSchemaOptions)

@@ -3,11 +3,22 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsNumber,
   IsOptional,
   IsString,
   MinLength,
   ValidateNested,
 } from 'class-validator';
+
+export class StagePositionDto {
+  @ApiProperty()
+  @IsNumber()
+  x!: number;
+
+  @ApiProperty()
+  @IsNumber()
+  y!: number;
+}
 
 export class WorkflowStageDto {
   @ApiProperty({ description: 'Stable id you choose, referenced by nextStageIds (e.g. "intake").' })
@@ -44,6 +55,16 @@ export class WorkflowStageDto {
   @IsArray()
   @IsString({ each: true })
   nextStageIds?: string[];
+
+  @ApiPropertyOptional({
+    type: StagePositionDto,
+    nullable: true,
+    description: 'Where the stage sits on the editor canvas — layout only.',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => StagePositionDto)
+  position?: StagePositionDto | null;
 }
 
 export class CreateWorkflowTemplateDto {

@@ -14,14 +14,29 @@ export interface CreateWorkflowTemplateInput {
   orgId: string;
   name: string;
   entryStageId: string;
-  stages: {
-    id: string;
-    name: string;
-    departmentId: string;
-    requiresApproval?: boolean;
-    checklistTemplate?: string[];
-    nextStageIds?: string[];
-  }[];
+  stages: WorkflowStageInput[];
+}
+
+export interface WorkflowStageInput {
+  id: string;
+  name: string;
+  departmentId: string;
+  requiresApproval?: boolean;
+  checklistTemplate?: string[];
+  nextStageIds?: string[];
+  position?: { x: number; y: number } | null;
+}
+
+export function toStageProps(stages: WorkflowStageInput[]): WorkflowStageProps[] {
+  return stages.map((s) => ({
+    id: s.id,
+    name: s.name,
+    departmentId: s.departmentId,
+    requiresApproval: s.requiresApproval ?? false,
+    checklistTemplate: s.checklistTemplate ?? [],
+    nextStageIds: s.nextStageIds ?? [],
+    position: s.position ?? null,
+  }));
 }
 
 @Injectable()
@@ -34,15 +49,7 @@ export class CreateWorkflowTemplateUseCase implements UseCase<
   ) {}
 
   async execute(input: CreateWorkflowTemplateInput): Promise<WorkflowTemplate> {
-    const stages: WorkflowStageProps[] = input.stages.map((s) => ({
-      id: s.id,
-      name: s.name,
-      departmentId: s.departmentId,
-      requiresApproval: s.requiresApproval ?? false,
-      checklistTemplate: s.checklistTemplate ?? [],
-      nextStageIds: s.nextStageIds ?? [],
-    }));
-
+    const stages = toStageProps(input.stages);
     const template = WorkflowTemplate.create(
       { orgId: input.orgId, name: input.name, entryStageId: input.entryStageId, stages },
       randomUUID(),

@@ -16,6 +16,14 @@ export interface WorkflowStageProps {
    * in different departments at once, not just a single linear hand-off).
    */
   nextStageIds: string[];
+  /** Where the admin placed this stage on the editor canvas — layout only, never read by the workflow engine. */
+  position: { x: number; y: number } | null;
+}
+
+export interface WorkflowTemplateDefinition {
+  name: string;
+  entryStageId: string;
+  stages: WorkflowStageProps[];
 }
 
 export interface WorkflowTemplateProps {
@@ -38,14 +46,41 @@ export class WorkflowTemplate extends Entity<WorkflowTemplateProps> {
   }
 
   static create(
-    props: {
-      orgId: string;
-      name: string;
-      entryStageId: string;
-      stages: WorkflowStageProps[];
-    },
+    props: WorkflowTemplateDefinition & { orgId: string },
     id: string,
   ): WorkflowTemplate {
+    WorkflowTemplate.validate(props);
+    return new WorkflowTemplate(
+      {
+        orgId: props.orgId,
+        name: props.name.trim(),
+        entryStageId: props.entryStageId,
+        stages: props.stages,
+        createdAt: new Date(),
+      },
+      id,
+    );
+  }
+
+  /**
+   * Replaces the whole graph (name, stages, connections, entry point) in
+   * one go — the editor always sends the full definition, so there's no
+   * partial-patch merging to get wrong. Same rules as create().
+   *
+   * Tasks already in flight keep their templateId/stageId: keeping a
+   * stage's id keeps them on it (and they hand off along the NEW
+   * connections when finished); removing a stage they sit on just means
+   * they stop advancing — AdvanceWorkflowService treats an unknown stage
+   * as "nothing to spawn," never an error.
+   */
+  update(definition: WorkflowTemplateDefinition): void {
+    WorkflowTemplate.validate(definition);
+    this.props.name = definition.name.trim();
+    this.props.entryStageId = definition.entryStageId;
+    this.props.stages = definition.stages;
+  }
+
+  private static validate(props: WorkflowTemplateDefinition): void {
     if (!props.name.trim()) throw new ValidationError('Template name is required');
     if (props.stages.length === 0) throw new ValidationError('A template needs at least one stage');
 
@@ -66,17 +101,6 @@ export class WorkflowTemplate extends Entity<WorkflowTemplateProps> {
         }
       }
     }
-
-    return new WorkflowTemplate(
-      {
-        orgId: props.orgId,
-        name: props.name.trim(),
-        entryStageId: props.entryStageId,
-        stages: props.stages,
-        createdAt: new Date(),
-      },
-      id,
-    );
   }
 
   static reconstitute(props: WorkflowTemplateProps, id: string): WorkflowTemplate {
