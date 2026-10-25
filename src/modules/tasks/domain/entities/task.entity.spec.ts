@@ -88,7 +88,11 @@ describe('Task', () => {
       expect(task.submittedForApprovalById).toBe('agent-1');
       expect(task.completedById).toBeNull(); // not finished yet — approve() still required
       expect(task.history).toHaveLength(1);
-      expect(task.history[0]).toMatchObject({ id: 'h-1', type: 'submitted_for_approval', byId: 'agent-1' });
+      expect(task.history[0]).toMatchObject({
+        id: 'h-1',
+        type: 'submitted_for_approval',
+        byId: 'agent-1',
+      });
     });
 
     it('refuses to complete() a task that is awaiting approval — approve() is required instead', () => {
@@ -124,7 +128,12 @@ describe('Task', () => {
     it('reject() sends a submitted task back to pending with a reason recorded in history', () => {
       const task = buildTask({ requiresApproval: true });
       task.submitForApproval({ byId: 'agent-1', byName: 'Alex Agent', historyId: 'h-1' });
-      task.reject({ byId: 'mgr-1', byName: 'Mona Manager', reason: 'Missing signature', historyId: 'h-2' });
+      task.reject({
+        byId: 'mgr-1',
+        byName: 'Mona Manager',
+        reason: 'Missing signature',
+        historyId: 'h-2',
+      });
 
       expect(task.status).toBe('pending');
       expect(task.submittedForApprovalById).toBeNull();

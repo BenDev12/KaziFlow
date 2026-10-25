@@ -23,55 +23,14 @@ import { CreateTaskUseCase } from '../../application/use-cases/create-task.use-c
 import { ListTasksUseCase } from '../../application/use-cases/list-tasks.use-case';
 import { RejectTaskUseCase } from '../../application/use-cases/reject-task.use-case';
 import { ToggleChecklistItemUseCase } from '../../application/use-cases/toggle-checklist-item.use-case';
-import {
-  NextStagePreview,
-  TaskWorkflowPreviewService,
-} from '../../application/services/task-workflow-preview.service';
+import { TaskWorkflowPreviewService } from '../../application/services/task-workflow-preview.service';
 import { AddTaskNoteDto } from '../dto/add-task-note.dto';
 import { AssignTaskDto } from '../dto/assign-task.dto';
 import { CreateTaskDto } from '../dto/create-task.dto';
 import { ListTasksQueryDto } from '../dto/list-tasks.query.dto';
 import { RejectTaskDto } from '../dto/reject-task.dto';
 import { ToggleChecklistItemDto } from '../dto/toggle-checklist-item.dto';
-
-function toResponse(task: Task, nextStages: NextStagePreview[] | null) {
-  return {
-    id: task.id,
-    clientId: task.clientId,
-    clientName: task.clientName,
-    agentId: task.agentId,
-    agentName: task.agentName,
-    departmentId: task.departmentId,
-    title: task.title,
-    description: task.description,
-    dueDate: task.dueDate,
-    priority: task.priority,
-    source: task.source,
-    activityLogId: task.activityLogId,
-    status: task.status,
-    templateId: task.templateId,
-    stageId: task.stageId,
-    requiresApproval: task.requiresApproval,
-    checklistItems: task.checklistItems,
-    assignedToUserId: task.assignedToUserId,
-    assignedToName: task.assignedToName,
-    links: task.links,
-    notes: task.notes,
-    history: task.history,
-    parentTaskId: task.parentTaskId,
-    submittedForApprovalById: task.submittedForApprovalById,
-    submittedForApprovalByName: task.submittedForApprovalByName,
-    submittedForApprovalAt: task.submittedForApprovalAt,
-    completedById: task.completedById,
-    completedByName: task.completedByName,
-    completedAt: task.completedAt,
-    createdAt: task.createdAt,
-    // Where this hands off to once finished, if it's a pending/awaiting
-    // workflow stage with a next stage — null otherwise (plain task, or
-    // nothing further to spawn). See TaskWorkflowPreviewService.
-    nextStages,
-  };
-}
+import { toTaskResponse } from '../presenters/task.presenter';
 
 /**
  * No controller-wide role gate on list/complete/checklist/assign/approve —
@@ -98,12 +57,12 @@ export class TasksController {
 
   private async toResponseOne(task: Task) {
     const previews = await this.workflowPreview.nextStagesFor([task]);
-    return toResponse(task, previews.get(task.id) ?? null);
+    return toTaskResponse(task, previews.get(task.id) ?? null);
   }
 
   private async toResponseMany(tasks: Task[]) {
     const previews = await this.workflowPreview.nextStagesFor(tasks);
-    return tasks.map((t) => toResponse(t, previews.get(t.id) ?? null));
+    return tasks.map((t) => toTaskResponse(t, previews.get(t.id) ?? null));
   }
 
   @HttpCode(HttpStatus.CREATED)

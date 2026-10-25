@@ -8,6 +8,7 @@ import { ListIssuesUseCase } from './application/use-cases/list-issues.use-case'
 import { IssueDocument, IssueSchema } from './infrastructure/schemas/issue.schema';
 import { IssueMongoRepository } from './infrastructure/repositories/issue.mongo.repository';
 import { IssuesController } from './interface/controllers/issues.controller';
+import { RealtimeIssueRepository } from './interface/realtime/realtime-issue.repository';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { IssuesController } from './interface/controllers/issues.controller';
   ],
   controllers: [IssuesController],
   providers: [
-    { provide: ISSUE_REPOSITORY, useClass: IssueMongoRepository },
+    IssueMongoRepository,
+    { provide: ISSUE_REPOSITORY, useClass: RealtimeIssueRepository },
     RaiseIssueUseCase,
     ResolveIssueUseCase,
     ListIssuesUseCase,

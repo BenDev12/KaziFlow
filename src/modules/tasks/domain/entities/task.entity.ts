@@ -27,11 +27,7 @@ export interface TaskNote {
 }
 
 export type TaskHistoryEventType =
-  | 'submitted_for_approval'
-  | 'approved'
-  | 'rejected'
-  | 'completed'
-  | 'stage_advanced';
+  'submitted_for_approval' | 'approved' | 'rejected' | 'completed' | 'stage_advanced';
 
 /** A system-recorded step in a task's (and, by extension, a workflow instance's) lifecycle — not user-editable, unlike TaskNote. */
 export interface TaskHistoryEntry {

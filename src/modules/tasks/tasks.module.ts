@@ -17,6 +17,7 @@ import { TaskWorkflowPreviewService } from './application/services/task-workflow
 import { TaskDocument, TaskSchema } from './infrastructure/schemas/task.schema';
 import { TaskMongoRepository } from './infrastructure/repositories/task.mongo.repository';
 import { TasksController } from './interface/controllers/tasks.controller';
+import { RealtimeTaskRepository } from './interface/realtime/realtime-task.repository';
 
 @Module({
   imports: [
@@ -27,7 +28,8 @@ import { TasksController } from './interface/controllers/tasks.controller';
   ],
   controllers: [TasksController],
   providers: [
-    { provide: TASK_REPOSITORY, useClass: TaskMongoRepository },
+    TaskMongoRepository,
+    { provide: TASK_REPOSITORY, useClass: RealtimeTaskRepository },
     AdvanceWorkflowService,
     TaskWorkflowPreviewService,
     CreateTaskUseCase,

@@ -15,6 +15,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { WorkflowTemplatesModule } from './modules/workflow-templates/workflow-templates.module';
 import { DatabaseModule } from './shared/infrastructure/database/database.module';
 import { EventsModule } from './shared/infrastructure/events/events.module';
+import { RealtimeModule } from './shared/infrastructure/realtime/realtime.module';
 import { buildPinoConfig } from './shared/infrastructure/logging/pino.config';
 import { TenancyModule } from './shared/infrastructure/tenancy/tenancy.module';
 import { TenantContextMiddleware } from './shared/infrastructure/tenancy/tenant-context.middleware';
@@ -25,6 +26,7 @@ import { TenantContextMiddleware } from './shared/infrastructure/tenancy/tenant-
     LoggerModule.forRootAsync({ inject: [ConfigService], useFactory: buildPinoConfig }),
     DatabaseModule,
     EventsModule,
+    RealtimeModule,
     TenancyModule,
     HealthModule,
     IamModule,

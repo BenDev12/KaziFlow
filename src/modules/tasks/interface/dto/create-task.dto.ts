@@ -73,7 +73,10 @@ export class CreateTaskDto {
   @IsEnum(TASK_PRIORITIES)
   priority?: TaskPriority;
 
-  @ApiPropertyOptional({ enum: TASK_SOURCES, description: 'Where this came from. Defaults to "internal".' })
+  @ApiPropertyOptional({
+    enum: TASK_SOURCES,
+    description: 'Where this came from. Defaults to "internal".',
+  })
   @IsOptional()
   @IsEnum(TASK_SOURCES)
   source?: TaskSource;
