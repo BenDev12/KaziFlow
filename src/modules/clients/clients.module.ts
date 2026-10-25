@@ -10,6 +10,9 @@ import { ListClientsUseCase } from './application/use-cases/list-clients.use-cas
 import { GetClientUseCase } from './application/use-cases/get-client.use-case';
 import { RecordClientVisitUseCase } from './application/use-cases/record-client-visit.use-case';
 import { SetClientRouteUseCase } from './application/use-cases/set-client-route.use-case';
+import { RequestClientChangeUseCase } from './application/use-cases/request-client-change.use-case';
+import { ApproveClientChangeUseCase } from './application/use-cases/approve-client-change.use-case';
+import { RejectClientChangeUseCase } from './application/use-cases/reject-client-change.use-case';
 import { ClientDocument, ClientSchema } from './infrastructure/schemas/client.schema';
 import { ClientMongoRepository } from './infrastructure/repositories/client.mongo.repository';
 import { ClientsController } from './interface/controllers/clients.controller';
@@ -32,6 +35,9 @@ import { ClientsController } from './interface/controllers/clients.controller';
     GetClientUseCase,
     RecordClientVisitUseCase,
     SetClientRouteUseCase,
+    RequestClientChangeUseCase,
+    ApproveClientChangeUseCase,
+    RejectClientChangeUseCase,
   ],
   exports: [CLIENT_REPOSITORY],
 })

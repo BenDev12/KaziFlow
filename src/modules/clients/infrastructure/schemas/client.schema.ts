@@ -7,6 +7,10 @@ import {
 import {
   CallCycle,
   Contact,
+  ClientChangeRequest,
+  ClientChangeRequestPatch,
+  ClientChangeRequestStatus,
+  ClientChangeRequestType,
   ClientPriority,
   ClientStatus,
   VisitTimeSlot,
@@ -25,6 +29,57 @@ class ContactSubdocument {
 
   @Prop({ type: String, default: null })
   phone!: string | null;
+}
+
+@Schema({ _id: false })
+class ChangeRequestPatchSubdocument {
+  @Prop({ type: [ContactSubdocument], default: undefined })
+  contacts?: Contact[];
+
+  @Prop({ type: String, enum: ['Weekly', 'Bi-weekly', 'Monthly'], default: undefined })
+  callCycle?: CallCycle;
+
+  @Prop({ type: String, enum: ['morning', 'midday', 'afternoon'], default: undefined })
+  preferredVisitTime?: VisitTimeSlot | null;
+}
+
+@Schema({ _id: false })
+class ChangeRequestSubdocument {
+  @Prop({ type: String, required: true })
+  id!: string;
+
+  @Prop({ type: String, required: true, enum: ['contacts', 'visitPreferences'] })
+  type!: ClientChangeRequestType;
+
+  @Prop({ type: ChangeRequestPatchSubdocument, required: true })
+  patch!: ClientChangeRequestPatch;
+
+  @Prop({ type: String, required: true })
+  requestedById!: string;
+
+  @Prop({ type: String, required: true })
+  requestedByName!: string;
+
+  @Prop({ type: String, default: null })
+  requestedByDepartmentId!: string | null;
+
+  @Prop({ type: Date, required: true })
+  requestedAt!: Date;
+
+  @Prop({ type: String, required: true, enum: ['pending', 'approved', 'rejected'] })
+  status!: ClientChangeRequestStatus;
+
+  @Prop({ type: String, default: null })
+  reviewedById!: string | null;
+
+  @Prop({ type: String, default: null })
+  reviewedByName!: string | null;
+
+  @Prop({ type: Date, default: null })
+  reviewedAt!: Date | null;
+
+  @Prop({ type: String, default: null })
+  reviewNote!: string | null;
 }
 
 @Schema(baseSchemaOptions)
@@ -79,6 +134,9 @@ export class ClientDocument extends Document<string> {
 
   @Prop({ type: Date, default: null })
   routeAddedAt!: Date | null;
+
+  @Prop({ type: [ChangeRequestSubdocument], default: [] })
+  changeRequests!: ClientChangeRequest[];
 
   createdAt!: Date;
   updatedAt!: Date;

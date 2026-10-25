@@ -1,10 +1,43 @@
 import { Entity } from '../../../../shared/domain/entity.base';
-import { ValidationError } from '../../../../shared/domain/errors/domain-error';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors/domain-error';
 
 export type CallCycle = 'Weekly' | 'Bi-weekly' | 'Monthly';
 export type ClientPriority = 'hot' | 'warm' | 'cold';
 export type ClientStatus = 'active' | 'pending';
 export type VisitTimeSlot = 'morning' | 'midday' | 'afternoon';
+
+/**
+ * 'contacts' covers the contact-person list; 'visitPreferences' covers the
+ * call cycle + preferred visit window, which are edited together from the
+ * same menu. These are the only two sections that go through approval — an
+ * agent proposing them doesn't change the office until a manager from their
+ * OWN department (or an org_admin) signs off. Everything else on the office
+ * (name, address, industry, priority) stays directly editable.
+ */
+export type ClientChangeRequestType = 'contacts' | 'visitPreferences';
+export type ClientChangeRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ClientChangeRequestPatch {
+  contacts?: { id: string; name: string; role?: string | null; phone?: string | null }[];
+  callCycle?: CallCycle;
+  preferredVisitTime?: VisitTimeSlot | null;
+}
+
+export interface ClientChangeRequest {
+  id: string;
+  type: ClientChangeRequestType;
+  patch: ClientChangeRequestPatch;
+  requestedById: string;
+  requestedByName: string;
+  /** The requester's OWN department at request time — approval is routed by who they report to, not by the office's department. */
+  requestedByDepartmentId: string | null;
+  requestedAt: Date;
+  status: ClientChangeRequestStatus;
+  reviewedById: string | null;
+  reviewedByName: string | null;
+  reviewedAt: Date | null;
+  reviewNote: string | null;
+}
 
 const CALL_CYCLE_DAYS: Record<CallCycle, number> = {
   Weekly: 7,
@@ -49,6 +82,7 @@ export interface ClientProps {
    * to a new route doesn't instantly count it as already handled.
    */
   routeAddedAt: Date | null;
+  changeRequests: ClientChangeRequest[];
 }
 
 export interface ClientPatch {
@@ -114,6 +148,7 @@ export class Client extends Entity<ClientProps> {
         preferredVisitTime: props.preferredVisitTime ?? null,
         routeId: null,
         routeAddedAt: null,
+        changeRequests: [],
       },
       id,
     );
@@ -150,6 +185,64 @@ export class Client extends Entity<ClientProps> {
     }
     if (patch.preferredVisitTime !== undefined)
       this.props.preferredVisitTime = patch.preferredVisitTime;
+  }
+
+  /** Queues a proposed contacts/visit-preferences change instead of applying it — see ClientChangeRequest. */
+  requestChange(input: {
+    id: string;
+    type: ClientChangeRequestType;
+    patch: ClientChangeRequestPatch;
+    requestedById: string;
+    requestedByName: string;
+    requestedByDepartmentId: string | null;
+  }): void {
+    this.props.changeRequests.push({
+      id: input.id,
+      type: input.type,
+      patch: input.patch,
+      requestedById: input.requestedById,
+      requestedByName: input.requestedByName,
+      requestedByDepartmentId: input.requestedByDepartmentId,
+      requestedAt: new Date(),
+      status: 'pending',
+      reviewedById: null,
+      reviewedByName: null,
+      reviewedAt: null,
+      reviewNote: null,
+    });
+  }
+
+  approveChange(requestId: string, reviewer: { id: string; name: string }): ClientChangeRequest {
+    const request = this.findPendingChangeRequest(requestId);
+    request.status = 'approved';
+    request.reviewedById = reviewer.id;
+    request.reviewedByName = reviewer.name;
+    request.reviewedAt = new Date();
+    this.applyPatch(request.patch);
+    return request;
+  }
+
+  rejectChange(
+    requestId: string,
+    reviewer: { id: string; name: string },
+    note: string | null,
+  ): ClientChangeRequest {
+    const request = this.findPendingChangeRequest(requestId);
+    request.status = 'rejected';
+    request.reviewedById = reviewer.id;
+    request.reviewedByName = reviewer.name;
+    request.reviewedAt = new Date();
+    request.reviewNote = note;
+    return request;
+  }
+
+  private findPendingChangeRequest(requestId: string): ClientChangeRequest {
+    const request = this.props.changeRequests.find((r) => r.id === requestId);
+    if (!request) throw new NotFoundError('Change request', requestId);
+    if (request.status !== 'pending') {
+      throw new ValidationError('This change request has already been reviewed.');
+    }
+    return request;
   }
 
   recordVisit(visitDate: Date, notes: string): void {
@@ -229,5 +322,9 @@ export class Client extends Entity<ClientProps> {
 
   get routeAddedAt(): Date | null {
     return this.props.routeAddedAt;
+  }
+
+  get changeRequests(): ClientChangeRequest[] {
+    return this.props.changeRequests;
   }
 }

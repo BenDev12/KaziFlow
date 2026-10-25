@@ -38,11 +38,16 @@ import {
 import { UpdateClientUseCase } from '../../application/use-cases/update-client.use-case';
 import { RecordClientVisitUseCase } from '../../application/use-cases/record-client-visit.use-case';
 import { SetClientRouteUseCase } from '../../application/use-cases/set-client-route.use-case';
+import { RequestClientChangeUseCase } from '../../application/use-cases/request-client-change.use-case';
+import { ApproveClientChangeUseCase } from '../../application/use-cases/approve-client-change.use-case';
+import { RejectClientChangeUseCase } from '../../application/use-cases/reject-client-change.use-case';
 import { CreateClientDto } from '../dto/create-client.dto';
 import { ListClientsQueryDto } from '../dto/list-clients.query.dto';
 import { UpdateClientDto } from '../dto/update-client.dto';
 import { RecordVisitDto } from '../dto/record-visit.dto';
 import { AssignRouteDto } from '../dto/assign-route.dto';
+import { RequestClientChangeDto } from '../dto/request-client-change.dto';
+import { RejectClientChangeDto } from '../dto/reject-client-change.dto';
 
 function toResponse(client: Client, overdue?: boolean) {
   return {
@@ -62,6 +67,7 @@ function toResponse(client: Client, overdue?: boolean) {
     preferredVisitTime: client.preferredVisitTime,
     routeId: client.routeId,
     routeAddedAt: client.routeAddedAt,
+    changeRequests: client.changeRequests,
     ...(overdue !== undefined ? { overdue } : {}),
   };
 }
@@ -78,6 +84,9 @@ export class ClientsController {
     private readonly getClientUseCase: GetClientUseCase,
     private readonly recordClientVisitUseCase: RecordClientVisitUseCase,
     private readonly setClientRouteUseCase: SetClientRouteUseCase,
+    private readonly requestClientChangeUseCase: RequestClientChangeUseCase,
+    private readonly approveClientChangeUseCase: ApproveClientChangeUseCase,
+    private readonly rejectClientChangeUseCase: RejectClientChangeUseCase,
     @Inject(DEPARTMENT_REPOSITORY) private readonly departments: DepartmentRepository,
     @Inject(ROUTE_REPOSITORY) private readonly routes: RouteRepository,
   ) {}
@@ -125,6 +134,75 @@ export class ClientsController {
   ) {
     await this.assertCanAccessOffices(user);
     const client = await this.updateClientUseCase.execute({ clientId: id, patch: dto });
+    return toResponse(client);
+  }
+
+  /**
+   * Contacts and visit-preferences edits go through here instead of PATCH
+   * directly — an agent's proposal is queued (Client.requestChange) until
+   * their own department's manager (or an org_admin) approves it; a manager
+   * or admin making the same edit already has the authority, so it's applied
+   * immediately instead of sitting in the queue behind their own name.
+   */
+  @Post(':id/change-requests')
+  async requestChange(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: RequestClientChangeDto,
+  ) {
+    await this.assertCanAccessOffices(user);
+
+    if (user.role === 'org_admin' || user.role === 'manager') {
+      const client = await this.updateClientUseCase.execute({ clientId: id, patch: dto.patch });
+      return toResponse(client);
+    }
+
+    const client = await this.requestClientChangeUseCase.execute({
+      clientId: id,
+      type: dto.type,
+      patch: dto.patch,
+      requestedById: user.sub,
+      requestedByName: user.name,
+      requestedByDepartmentId: user.departmentId,
+    });
+    return toResponse(client);
+  }
+
+  @Post(':id/change-requests/:requestId/approve')
+  async approveChange(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('requestId') requestId: string,
+  ) {
+    await this.assertCanAccessOffices(user);
+    const client = await this.approveClientChangeUseCase.execute({
+      clientId: id,
+      requestId,
+      byId: user.sub,
+      byName: user.name,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
+    });
+    return toResponse(client);
+  }
+
+  @Post(':id/change-requests/:requestId/reject')
+  async rejectChange(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('requestId') requestId: string,
+    @Body() dto: RejectClientChangeDto,
+  ) {
+    await this.assertCanAccessOffices(user);
+    const client = await this.rejectClientChangeUseCase.execute({
+      clientId: id,
+      requestId,
+      byId: user.sub,
+      byName: user.name,
+      note: dto.note?.trim() || null,
+      requestingRole: user.role,
+      requestingDepartmentId: user.departmentId,
+    });
     return toResponse(client);
   }
 

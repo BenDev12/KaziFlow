@@ -65,6 +65,7 @@ export class ClientMongoRepository
       preferredVisitTime: client.preferredVisitTime,
       routeId: client.routeId,
       routeAddedAt: client.routeAddedAt,
+      changeRequests: client.changeRequests,
     });
     return this.toDomain(doc);
   }
@@ -87,6 +88,7 @@ export class ClientMongoRepository
         preferredVisitTime: client.preferredVisitTime,
         routeId: client.routeId,
         routeAddedAt: client.routeAddedAt,
+        changeRequests: client.changeRequests,
       },
     );
     if (!doc) throw new Error(`Cannot save Client "${client.id}": document not found`);
@@ -119,6 +121,7 @@ export class ClientMongoRepository
         preferredVisitTime: doc.preferredVisitTime,
         routeId: doc.routeId,
         routeAddedAt: doc.routeAddedAt,
+        changeRequests: doc.changeRequests ?? [],
       },
       doc._id,
     );
