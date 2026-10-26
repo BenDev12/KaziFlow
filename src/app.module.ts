@@ -8,6 +8,7 @@ import { ActivitiesModule } from './modules/activities/activities.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
 import { FlagsModule } from './modules/flags/flags.module';
+import { GmailIngestionModule } from './modules/gmail-ingestion/gmail-ingestion.module';
 import { IamModule } from './modules/iam/iam.module';
 import { IssuesModule } from './modules/issues/issues.module';
 import { RoutesModule } from './modules/routes/routes.module';
@@ -39,6 +40,7 @@ import { TenantContextMiddleware } from './shared/infrastructure/tenancy/tenant-
     TasksModule,
     FlagsModule,
     AnalyticsModule,
+    GmailIngestionModule,
   ],
 })
 export class AppModule implements NestModule {

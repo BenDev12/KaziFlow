@@ -41,6 +41,6 @@ import { RealtimeTaskRepository } from './interface/realtime/realtime-task.repos
     ListTasksUseCase,
     AddTaskNoteUseCase,
   ],
-  exports: [TASK_REPOSITORY],
+  exports: [TASK_REPOSITORY, CreateTaskUseCase],
 })
 export class TasksModule {}
