@@ -78,6 +78,13 @@ export interface TaskProps {
   completedById: string | null;
   completedByName: string | null;
   completedAt: Date | null;
+  /**
+   * True from the moment a workflow-stage task finishes (same save as the
+   * completion itself) until AdvanceWorkflowService has created every next
+   * stage's task. If the process dies in between, HandoffSweeperService
+   * finds it still true and finishes the hand-off — see there.
+   */
+  handoffPending: boolean;
   createdAt: Date;
 }
 
@@ -143,6 +150,7 @@ export class Task extends AggregateRoot<TaskProps> {
         completedById: null,
         completedByName: null,
         completedAt: null,
+        handoffPending: false,
         createdAt: new Date(),
       },
       id,
@@ -210,6 +218,7 @@ export class Task extends AggregateRoot<TaskProps> {
     this.props.completedById = input.byId;
     this.props.completedByName = input.byName;
     this.props.completedAt = new Date();
+    this.props.handoffPending = this.isWorkflowStage;
     this.props.history.push({
       id: input.historyId,
       type: 'approved',
@@ -270,6 +279,7 @@ export class Task extends AggregateRoot<TaskProps> {
     this.props.completedById = input.byId;
     this.props.completedByName = input.byName;
     this.props.completedAt = new Date();
+    this.props.handoffPending = this.isWorkflowStage;
     this.props.history.push({
       id: input.historyId,
       type: 'completed',
@@ -394,6 +404,15 @@ export class Task extends AggregateRoot<TaskProps> {
 
   get completedAt(): Date | null {
     return this.props.completedAt;
+  }
+
+  get handoffPending(): boolean {
+    return this.props.handoffPending;
+  }
+
+  /** Created from a workflow template stage — finishing it may hand off to the next stage(s). */
+  get isWorkflowStage(): boolean {
+    return Boolean(this.props.templateId && this.props.stageId);
   }
 
   get createdAt(): Date {

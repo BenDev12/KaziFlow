@@ -13,6 +13,8 @@ import { ListTasksUseCase } from './application/use-cases/list-tasks.use-case';
 import { RejectTaskUseCase } from './application/use-cases/reject-task.use-case';
 import { ToggleChecklistItemUseCase } from './application/use-cases/toggle-checklist-item.use-case';
 import { AdvanceWorkflowService } from './application/services/advance-workflow.service';
+import { HandoffSweeperService } from './application/services/handoff-sweeper.service';
+import { TaskNotificationsService } from './application/services/task-notifications.service';
 import { TaskWorkflowPreviewService } from './application/services/task-workflow-preview.service';
 import { TaskDocument, TaskSchema } from './infrastructure/schemas/task.schema';
 import { TaskMongoRepository } from './infrastructure/repositories/task.mongo.repository';
@@ -31,6 +33,8 @@ import { RealtimeTaskRepository } from './interface/realtime/realtime-task.repos
     TaskMongoRepository,
     { provide: TASK_REPOSITORY, useClass: RealtimeTaskRepository },
     AdvanceWorkflowService,
+    HandoffSweeperService,
+    TaskNotificationsService,
     TaskWorkflowPreviewService,
     CreateTaskUseCase,
     CompleteTaskUseCase,

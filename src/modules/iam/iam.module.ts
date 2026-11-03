@@ -78,6 +78,6 @@ import { OrganizationController } from './interface/controllers/organization.con
     RequestPasswordResetUseCase,
     ResetPasswordUseCase,
   ],
-  exports: [USER_REPOSITORY, ORGANIZATION_REPOSITORY],
+  exports: [USER_REPOSITORY, ORGANIZATION_REPOSITORY, EMAIL_SERVICE],
 })
 export class IamModule {}

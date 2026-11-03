@@ -171,6 +171,9 @@ export class TaskDocument extends Document<string> {
   @Prop({ type: Date, default: null })
   completedAt!: Date | null;
 
+  @Prop({ type: Boolean, default: false })
+  handoffPending!: boolean;
+
   createdAt!: Date;
   updatedAt!: Date;
 }
@@ -181,3 +184,8 @@ TaskSchema.index({ orgId: 1, clientId: 1 });
 TaskSchema.index({ orgId: 1, departmentId: 1 });
 TaskSchema.index({ orgId: 1, assignedToUserId: 1 });
 TaskSchema.index({ orgId: 1, parentTaskId: 1 });
+// Only unfinished hand-offs are indexed — HandoffSweeperService's query, kept tiny.
+TaskSchema.index(
+  { completedAt: 1 },
+  { partialFilterExpression: { handoffPending: true }, name: 'pending_handoffs' },
+);

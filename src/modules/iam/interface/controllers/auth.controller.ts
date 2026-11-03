@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import {
   clearAuthCookies,
@@ -20,6 +21,7 @@ import {
 } from '../../../../shared/infrastructure/tenancy/auth-cookies';
 import { REFRESH_TOKEN_COOKIE } from '../../../../shared/infrastructure/tenancy/cookie-names';
 import { CurrentUser } from '../../../../shared/interface/decorators/current-user.decorator';
+import { AuthThrottlerGuard } from '../../../../shared/interface/guards/auth-throttler.guard';
 import { JwtAuthGuard } from '../../../../shared/interface/guards/jwt-auth.guard';
 import { JwtPayload } from '../../../../shared/infrastructure/tenancy/jwt-payload.interface';
 import { LoginUseCase } from '../../application/use-cases/login.use-case';
@@ -49,6 +51,8 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
+  @UseGuards(AuthThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60 * 60_000 } })
   @Post('signup')
   async signup(@Body() dto: SignupDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.signupUseCase.execute(dto);
@@ -56,6 +60,7 @@ export class AuthController {
     return { orgSetupComplete: result.orgSetupComplete };
   }
 
+  @UseGuards(AuthThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
@@ -96,6 +101,8 @@ export class AuthController {
    * own silent no-op handles the first case, this try/catch handles the
    * second, so this endpoint never confirms/denies a registered email.
    */
+  @UseGuards(AuthThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 15 * 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('forgot-password')
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
@@ -107,6 +114,7 @@ export class AuthController {
     return { ok: true };
   }
 
+  @UseGuards(AuthThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @Post('reset-password/:token')
   async resetPassword(

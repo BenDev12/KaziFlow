@@ -134,6 +134,8 @@ class FakeEmailService implements EmailService {
   }
 
   async sendPasswordResetEmail(_input: SendPasswordResetEmailInput): Promise<void> {}
+
+  async sendTaskNotificationEmail(): Promise<void> {}
 }
 
 describe('CreateInviteUseCase', () => {

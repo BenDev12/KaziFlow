@@ -13,6 +13,7 @@ import {
 } from '../../../iam/domain/repositories/user.repository.port';
 import { Task } from '../../domain/entities/task.entity';
 import { TASK_REPOSITORY, TaskRepository } from '../../domain/repositories/task.repository.port';
+import { TaskNotificationsService } from '../services/task-notifications.service';
 
 export interface AssignTaskInput {
   taskId: string;
@@ -31,6 +32,7 @@ export class AssignTaskUseCase implements UseCase<AssignTaskInput, Task> {
   constructor(
     @Inject(TASK_REPOSITORY) private readonly tasks: TaskRepository,
     @Inject(USER_REPOSITORY) private readonly users: UserRepository,
+    private readonly notifications: TaskNotificationsService,
   ) {}
 
   async execute(input: AssignTaskInput): Promise<Task> {
@@ -63,6 +65,8 @@ export class AssignTaskUseCase implements UseCase<AssignTaskInput, Task> {
     }
 
     task.assign({ userId: assignee.id, userName: assignee.name });
-    return this.tasks.save(task);
+    const saved = await this.tasks.save(task);
+    void this.notifications.taskAssigned(saved);
+    return saved;
   }
 }

@@ -27,8 +27,15 @@ import {
   TaskSource,
 } from '../../domain/entities/task.entity';
 import { TASK_REPOSITORY, TaskRepository } from '../../domain/repositories/task.repository.port';
+import { TaskNotificationsService } from '../services/task-notifications.service';
 
 export interface CreateTaskInput {
+  /**
+   * Internal callers only (never exposed through the DTO): a deterministic
+   * id lets a system that may retry — e.g. Gmail ingestion after a crash —
+   * recognise a task it already created instead of creating it twice.
+   */
+  taskId?: string;
   title: string;
   description?: string;
   clientId?: string;
@@ -58,6 +65,7 @@ export class CreateTaskUseCase implements UseCase<CreateTaskInput, Task> {
     @Inject(CLIENT_REPOSITORY) private readonly clients: ClientRepository,
     @Inject(USER_REPOSITORY) private readonly users: UserRepository,
     @Inject(WORKFLOW_TEMPLATE_REPOSITORY) private readonly templates: WorkflowTemplateRepository,
+    private readonly notifications: TaskNotificationsService,
   ) {}
 
   async execute(input: CreateTaskInput): Promise<Task> {
@@ -144,8 +152,10 @@ export class CreateTaskUseCase implements UseCase<CreateTaskInput, Task> {
         links: input.links,
         parentTaskId: null,
       },
-      randomUUID(),
+      input.taskId ?? randomUUID(),
     );
-    return this.tasks.create(task);
+    const created = await this.tasks.create(task);
+    void this.notifications.taskCreated(created);
+    return created;
   }
 }

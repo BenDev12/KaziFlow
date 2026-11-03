@@ -7,7 +7,7 @@ import {
   GMAIL_INTEGRATION_REPOSITORY,
   GmailIntegrationRepository,
 } from '../../domain/repositories/gmail-integration.repository.port';
-import { encryptToken } from '../../infrastructure/crypto/token-cipher';
+import { GmailTokenCipher } from '../../infrastructure/crypto/token-cipher';
 import { buildGmailOAuthClient } from '../../infrastructure/google/gmail-oauth-client';
 import { GmailConnectStatePayload } from './start-gmail-connection.use-case';
 
@@ -22,6 +22,7 @@ export class CompleteGmailConnectionUseCase {
     private readonly jwt: JwtService,
     @Inject(GMAIL_INTEGRATION_REPOSITORY)
     private readonly integrations: GmailIntegrationRepository,
+    private readonly tokenCipher: GmailTokenCipher,
   ) {}
 
   async execute({ code, state }: { code: string; state: string }): Promise<{ orgId: string }> {
@@ -57,9 +58,8 @@ export class CompleteGmailConnectionUseCase {
     const profile = await gmail.users.getProfile({ userId: 'me' });
     const connectedEmail = profile.data.emailAddress ?? '(unknown address)';
 
-    const jwtAccessSecret = this.config.get<string>('JWT_ACCESS_SECRET')!;
     const refreshTokenEncrypted = refreshToken
-      ? encryptToken(refreshToken, jwtAccessSecret)
+      ? this.tokenCipher.encrypt(refreshToken)
       : existing!.refreshTokenEncrypted;
 
     const integration = new GmailIntegration({

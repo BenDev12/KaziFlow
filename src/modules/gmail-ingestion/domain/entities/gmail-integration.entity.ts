@@ -51,6 +51,10 @@ export class GmailIntegration {
     return this.props.createdAt;
   }
 
+  withRefreshTokenEncrypted(refreshTokenEncrypted: string): GmailIntegration {
+    return new GmailIntegration({ ...this.props, refreshTokenEncrypted, updatedAt: new Date() });
+  }
+
   /** Configured enough for the poller to actually act on it. */
   get isReadyToPoll(): boolean {
     return Boolean(this.props.departmentId) && this.props.keywords.length > 0;

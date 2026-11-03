@@ -38,6 +38,17 @@ export class RealtimeTaskRepository implements TaskRepository {
     return this.inner.findAll(filter);
   }
 
+  markHandoffDone(id: string): Promise<void> {
+    return this.inner.markHandoffDone(id);
+  }
+
+  findPendingHandoffsAcrossOrgs(
+    completedBefore: Date,
+    limit: number,
+  ): Promise<{ orgId: string; task: Task }[]> {
+    return this.inner.findPendingHandoffsAcrossOrgs(completedBefore, limit);
+  }
+
   async create(task: Task): Promise<Task> {
     const created = await this.inner.create(task);
     this.broadcast('task.created', created);

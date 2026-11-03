@@ -74,6 +74,7 @@ export class TaskMongoRepository
       completedById: task.completedById,
       completedByName: task.completedByName,
       completedAt: task.completedAt,
+      handoffPending: task.handoffPending,
     });
     return this.toDomain(doc);
   }
@@ -94,10 +95,35 @@ export class TaskMongoRepository
         completedById: task.completedById,
         completedByName: task.completedByName,
         completedAt: task.completedAt,
+        handoffPending: task.handoffPending,
       },
     );
     if (!doc) throw new Error(`Cannot save Task "${task.id}": document not found`);
     return this.toDomain(doc);
+  }
+
+  async markHandoffDone(id: string): Promise<void> {
+    // A targeted update, not save(): must never overwrite notes/checklist
+    // edits someone made to this task since it was loaded.
+    await this.updateOneScoped({ _id: id }, { handoffPending: false });
+  }
+
+  /**
+   * Cross-tenant on purpose — the sweeper walks every org's stuck hand-offs
+   * in one pass and re-enters each org's tenant context itself. The only
+   * unscoped read on this collection; returns orgId alongside each task
+   * because Task itself doesn't carry it.
+   */
+  async findPendingHandoffsAcrossOrgs(
+    completedBefore: Date,
+    limit: number,
+  ): Promise<{ orgId: string; task: Task }[]> {
+    const docs = await this.model
+      .find({ handoffPending: true, completedAt: { $lt: completedBefore } })
+      .sort({ completedAt: 1 })
+      .limit(limit)
+      .exec();
+    return docs.map((doc) => ({ orgId: doc.orgId, task: this.toDomain(doc) }));
   }
 
   private toDomain(doc: TaskDocument): Task {
@@ -144,6 +170,7 @@ export class TaskMongoRepository
         completedById: doc.completedById,
         completedByName: doc.completedByName,
         completedAt: doc.completedAt,
+        handoffPending: doc.handoffPending ?? false,
         createdAt: doc.createdAt,
       },
       doc._id,

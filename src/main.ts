@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { DomainExceptionFilter } from './shared/infrastructure/filters/domain-exception.filter';
@@ -13,6 +14,10 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService);
 
   app.useLogger(app.get(Logger));
+  // Standard security headers. CSP is off: this server only returns JSON
+  // (plus the Swagger UI at /docs, which a strict CSP would break) — the
+  // pages users actually load are served, and protected, by the Next.js app.
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser());
   app.enableCors({ origin: config.get<string>('CORS_ORIGIN'), credentials: true });
   app.useGlobalPipes(

@@ -57,7 +57,7 @@ export class ApproveTaskUseCase implements UseCase<ApproveTaskInput, Task> {
     const saved = await this.tasks.save(task);
 
     await this.eventBus.publishAll(task.pullDomainEvents());
-    await this.advanceWorkflow.advance(saved);
+    await this.advanceWorkflow.advanceOrLeaveForSweeper(saved);
 
     return saved;
   }

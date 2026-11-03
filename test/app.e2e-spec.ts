@@ -7,6 +7,7 @@ import type {
   EmailService,
   SendInviteEmailInput,
   SendPasswordResetEmailInput,
+  SendTaskNotificationEmailInput,
 } from '../src/modules/iam/application/ports/email.port';
 
 /** Records invite emails instead of calling the real Resend API during tests. */
@@ -18,6 +19,12 @@ class FakeEmailService implements EmailService {
   }
 
   async sendPasswordResetEmail(_input: SendPasswordResetEmailInput): Promise<void> {}
+
+  public taskEmails: SendTaskNotificationEmailInput[] = [];
+
+  async sendTaskNotificationEmail(input: SendTaskNotificationEmailInput): Promise<void> {
+    this.taskEmails.push(input);
+  }
 }
 
 /**
@@ -43,6 +50,11 @@ describe('Field Tracker API (e2e)', () => {
     process.env.CORS_ORIGIN = 'http://localhost:3000';
     process.env.RESEND_API_KEY = 'test-resend-key';
     process.env.EMAIL_FROM = 'onboarding@resend.dev';
+    // Values set here win over a developer's local .env (ConfigModule
+    // reads both). Blank Gmail so the poller never boots against a real
+    // Google account, and the suite can't depend on someone's local setup.
+    process.env.GMAIL_CLIENT_ID = '';
+    process.env.GMAIL_CLIENT_SECRET = '';
 
     // Dynamic imports, not static top-of-file ones: AppModule's `@Module({
     // imports: [ConfigModule.forRoot({ validate })] })` decorator evaluates
@@ -226,6 +238,30 @@ describe('Field Tracker API (e2e)', () => {
     await request(app.getHttpServer()).get('/v1/clients').expect(401);
   });
 
+  it('rate-limits login per account, without locking anyone else out', async () => {
+    await signupAndOnboard('throttled@example.com', 'ThrottleCo');
+    await signupAndOnboard('bystander@example.com', 'BystanderCo');
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await request(app.getHttpServer())
+        .post('/v1/auth/login')
+        .send({ email: 'throttled@example.com', password: 'wrong-password' })
+        .expect(401);
+    }
+    // Case/whitespace variations of the same address share the same bucket.
+    await request(app.getHttpServer())
+      .post('/v1/auth/login')
+      .send({ email: ' Throttled@Example.com ', password: 'wrong-password' })
+      .expect(429);
+
+    // Every request arrives from the same IP here, just like behind the UI's
+    // proxy — a different account must still be able to sign in.
+    await request(app.getHttpServer())
+      .post('/v1/auth/login')
+      .send({ email: 'bystander@example.com', password: 'super-secret-1' })
+      .expect(200);
+  });
+
   it('invites a teammate, emails them, and lets them accept into the same org', async () => {
     const { cookies: adminCookies, orgId } = await signupAndOnboard(
       'invite-admin@example.com',
@@ -268,7 +304,14 @@ describe('Field Tracker API (e2e)', () => {
     const agentCookies = extractCookies(acceptRes);
 
     // The accepted invitee landed in the SAME org, not a fresh one.
-    await request(app.getHttpServer()).get('/v1/clients').set('Cookie', agentCookies).expect(200);
+    const membersRes = await request(app.getHttpServer())
+      .get('/v1/org/members')
+      .set('Cookie', adminCookies)
+      .expect(200);
+    expect(membersRes.body.map((m: { email: string }) => m.email)).toContain(
+      'new-agent@example.com',
+    );
+    await request(app.getHttpServer()).get('/v1/tasks').set('Cookie', agentCookies).expect(200);
 
     // ...but with an agent's permissions, not the admin's.
     await request(app.getHttpServer())
@@ -324,7 +367,7 @@ describe('Field Tracker API (e2e)', () => {
     return extractCookies(res);
   }
 
-  it('scopes manager visibility to their own department, admin sees everything, and unassigned records stay shared', async () => {
+  it('opens Offices to admins, every manager, and the sales/field team only — and shows them the whole org', async () => {
     const admin = await signupAndOnboard('dept-admin@example.com', 'DeptCo');
 
     const salesRes = await request(app.getHttpServer())
@@ -380,47 +423,46 @@ describe('Field Tracker API (e2e)', () => {
       .expect(201);
     const financeClientId = financeClientRes.body.id as string;
 
-    const salesList = await request(app.getHttpServer())
-      .get('/v1/clients')
-      .set('Cookie', salesCookies)
-      .expect(200);
-    expect(salesList.body.map((c: { id: string }) => c.id)).toEqual([salesClientId]);
+    // Offices belong to the sales/field team as a whole, not to whichever
+    // department created them — every manager and the admin see all of
+    // them (see office-access.ts).
+    const allIds = [salesClientId, financeClientId].sort();
+    for (const cookies of [salesCookies, financeCookies, admin.cookies]) {
+      const list = await request(app.getHttpServer())
+        .get('/v1/clients')
+        .set('Cookie', cookies)
+        .expect(200);
+      expect(list.body.map((c: { id: string }) => c.id).sort()).toEqual(allIds);
+    }
 
-    const financeList = await request(app.getHttpServer())
-      .get('/v1/clients')
-      .set('Cookie', financeCookies)
-      .expect(200);
-    expect(financeList.body.map((c: { id: string }) => c.id)).toEqual([financeClientId]);
-
-    const adminList = await request(app.getHttpServer())
-      .get('/v1/clients')
-      .set('Cookie', admin.cookies)
-      .expect(200);
-    expect(adminList.body).toHaveLength(2);
-
-    // A manager can't fetch the other department's client by id either —
-    // the list boundary isn't just cosmetic.
+    // Agents get in only through a sales/field department...
     await request(app.getHttpServer())
-      .get(`/v1/clients/${financeClientId}`)
-      .set('Cookie', salesCookies)
-      .expect(404);
-
-    // A client with no department (created by the admin, who is never
-    // department-scoped) stays visible to every department.
-    const sharedClientRes = await request(app.getHttpServer())
-      .post('/v1/clients')
+      .post('/v1/invites')
       .set('Cookie', admin.cookies)
-      .send({ name: 'Shared Client', contact: 'C', phone: '3', callCycle: 'Weekly', address: 'z' })
+      .send({ email: 'sales-agent@example.com', role: 'agent', departmentId: salesId })
       .expect(201);
-    expect(sharedClientRes.body.departmentId).toBeNull();
-
-    const salesListAfterShared = await request(app.getHttpServer())
+    const salesAgentCookies = await acceptLatestInvite('Sales Agent');
+    const salesAgentList = await request(app.getHttpServer())
       .get('/v1/clients')
-      .set('Cookie', salesCookies)
+      .set('Cookie', salesAgentCookies)
       .expect(200);
-    expect(salesListAfterShared.body.map((c: { id: string }) => c.id).sort()).toEqual(
-      [salesClientId, sharedClientRes.body.id].sort(),
-    );
+    expect(salesAgentList.body).toHaveLength(2);
+
+    // ...anyone else is refused outright, by list or by id — not shown an empty view.
+    await request(app.getHttpServer())
+      .post('/v1/invites')
+      .set('Cookie', admin.cookies)
+      .send({ email: 'finance-agent@example.com', role: 'agent', departmentId: financeId })
+      .expect(201);
+    const financeAgentCookies = await acceptLatestInvite('Finance Agent');
+    await request(app.getHttpServer())
+      .get('/v1/clients')
+      .set('Cookie', financeAgentCookies)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(`/v1/clients/${salesClientId}`)
+      .set('Cookie', financeAgentCookies)
+      .expect(403);
   });
 
   it('restricts department management to org_admin and blocks deleting an occupied department', async () => {
@@ -745,5 +787,108 @@ describe('Field Tracker API (e2e)', () => {
       .expect(200);
     expect(finCompleteRes.body.status).toBe('completed');
     expect(finCompleteRes.body.assignedToUserId).toBeNull();
+  });
+  it('emails whoever a task now needs — and never the person who just acted', async () => {
+    const admin = await signupAndOnboard('notify-admin@example.com', 'NotifyCo');
+    const salesRes = await request(app.getHttpServer())
+      .post('/v1/departments')
+      .set('Cookie', admin.cookies)
+      .send({ name: 'Sales' })
+      .expect(201);
+    const salesId = salesRes.body.id as string;
+
+    async function join(email: string, role: 'manager' | 'agent', name: string) {
+      await request(app.getHttpServer())
+        .post('/v1/invites')
+        .set('Cookie', admin.cookies)
+        .send({ email, role, departmentId: salesId })
+        .expect(201);
+      return acceptLatestInvite(name);
+    }
+    const managerCookies = await join('notify-mgr@example.com', 'manager', 'Mona Manager');
+    const agentCookies = await join('notify-agent@example.com', 'agent', 'Andy Agent');
+    const members = await request(app.getHttpServer())
+      .get('/v1/org/members')
+      .set('Cookie', admin.cookies)
+      .expect(200);
+    const agentId = members.body.find(
+      (m: { email: string }) => m.email === 'notify-agent@example.com',
+    ).id as string;
+
+    // Emails go out in the background — wait for them rather than racing.
+    async function emailsTo(to: string, count = 1) {
+      for (let i = 0; i < 50; i++) {
+        const mine = fakeEmailService.taskEmails.filter((e) => e.to === to);
+        if (mine.length >= count) return mine;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return fakeEmailService.taskEmails.filter((e) => e.to === to);
+    }
+    fakeEmailService.taskEmails = [];
+
+    // 1. Unassigned task lands in Sales -> Sales manager hears about it.
+    const unassigned = await request(app.getHttpServer())
+      .post('/v1/tasks')
+      .set('Cookie', admin.cookies)
+      .send({ title: 'Call back Acme', departmentId: salesId })
+      .expect(201);
+    const [newInDept] = await emailsTo('notify-mgr@example.com');
+    expect(newInDept).toMatchObject({
+      subject: 'New in your department: Call back Acme',
+      taskUrl: `http://localhost:3000/tasks/${unassigned.body.id}`,
+    });
+
+    // 2. Workflow task assigned to the agent, needing approval -> agent hears it's theirs.
+    const templateRes = await request(app.getHttpServer())
+      .post('/v1/workflow-templates')
+      .set('Cookie', admin.cookies)
+      .send({
+        name: 'Quote',
+        entryStageId: 'draft',
+        stages: [
+          { id: 'draft', name: 'Draft quote', departmentId: salesId, requiresApproval: true },
+        ],
+      })
+      .expect(201);
+    const taskRes = await request(app.getHttpServer())
+      .post('/v1/tasks')
+      .set('Cookie', admin.cookies)
+      .send({ title: 'Quote for Acme', templateId: templateRes.body.id, assignedToUserId: agentId })
+      .expect(201);
+    const taskId = taskRes.body.id as string;
+    const [assigned] = await emailsTo('notify-agent@example.com');
+    expect(assigned.subject).toBe('Assigned to you: Quote for Acme');
+
+    // 3. Agent submits -> manager is asked to approve.
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${taskId}/complete`)
+      .set('Cookie', agentCookies)
+      .expect(200);
+    const managerEmails = await emailsTo('notify-mgr@example.com', 2);
+    expect(managerEmails[1].subject).toBe('Needs your approval: Quote for Acme');
+    expect(managerEmails[1].headline).toContain('Andy Agent');
+
+    // 4. Manager sends it back -> agent gets the reason.
+    await request(app.getHttpServer())
+      .post(`/v1/tasks/${taskId}/reject`)
+      .set('Cookie', managerCookies)
+      .send({ reason: 'Price is missing VAT' })
+      .expect(200);
+    const agentEmails = await emailsTo('notify-agent@example.com', 2);
+    expect(agentEmails[1]).toMatchObject({
+      subject: 'Sent back: Quote for Acme',
+      detail: 'Price is missing VAT',
+    });
+
+    // Nobody was emailed about their own action, and nothing else went out.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(fakeEmailService.taskEmails.map((e) => `${e.to} | ${e.subject}`).sort()).toEqual(
+      [
+        'notify-agent@example.com | Assigned to you: Quote for Acme',
+        'notify-agent@example.com | Sent back: Quote for Acme',
+        'notify-mgr@example.com | Needs your approval: Quote for Acme',
+        'notify-mgr@example.com | New in your department: Call back Acme',
+      ].sort(),
+    );
   });
 });

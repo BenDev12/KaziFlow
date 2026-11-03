@@ -15,6 +15,7 @@ import { Response } from 'express';
 import { setAuthCookies } from '../../../../shared/infrastructure/tenancy/auth-cookies';
 import { CurrentUser } from '../../../../shared/interface/decorators/current-user.decorator';
 import { Roles } from '../../../../shared/interface/decorators/roles.decorator';
+import { AuthThrottlerGuard } from '../../../../shared/interface/guards/auth-throttler.guard';
 import { JwtAuthGuard } from '../../../../shared/interface/guards/jwt-auth.guard';
 import { RequireOrgGuard } from '../../../../shared/interface/guards/require-org.guard';
 import { RolesGuard } from '../../../../shared/interface/guards/roles.guard';
@@ -99,6 +100,7 @@ export class InvitesController {
     return this.getInviteByTokenUseCase.execute({ token });
   }
 
+  @UseGuards(AuthThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @Post(':token/accept')
   async accept(

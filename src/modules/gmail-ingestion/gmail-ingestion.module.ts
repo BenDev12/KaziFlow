@@ -9,6 +9,7 @@ import { GetGmailIntegrationUseCase } from './application/use-cases/get-gmail-in
 import { StartGmailConnectionUseCase } from './application/use-cases/start-gmail-connection.use-case';
 import { UpdateGmailIntegrationSettingsUseCase } from './application/use-cases/update-gmail-integration-settings.use-case';
 import { GMAIL_INTEGRATION_REPOSITORY } from './domain/repositories/gmail-integration.repository.port';
+import { GmailTokenCipher } from './infrastructure/crypto/token-cipher';
 import { GmailIntegrationMongoRepository } from './infrastructure/repositories/gmail-integration.mongo.repository';
 import {
   GmailIntegrationDocument,
@@ -32,6 +33,7 @@ import { GmailIntegrationController } from './interface/controllers/gmail-integr
   controllers: [GmailIntegrationController],
   providers: [
     GmailIngestionService,
+    GmailTokenCipher,
     { provide: GMAIL_INTEGRATION_REPOSITORY, useClass: GmailIntegrationMongoRepository },
     GetGmailIntegrationUseCase,
     StartGmailConnectionUseCase,

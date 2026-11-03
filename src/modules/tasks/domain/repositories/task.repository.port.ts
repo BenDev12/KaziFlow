@@ -24,4 +24,11 @@ export interface TaskRepository {
   findAll(filter?: TaskListFilter): Promise<Task[]>;
   create(task: Task): Promise<Task>;
   save(task: Task): Promise<Task>;
+  /** Clears handoffPending without touching anything else on the task. */
+  markHandoffDone(id: string): Promise<void>;
+  /** Cross-tenant: completed workflow tasks whose hand-off never finished — see HandoffSweeperService. */
+  findPendingHandoffsAcrossOrgs(
+    completedBefore: Date,
+    limit: number,
+  ): Promise<{ orgId: string; task: Task }[]>;
 }

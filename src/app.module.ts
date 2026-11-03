@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { validateEnv } from './config/env.schema';
 import { HealthModule } from './health/health.module';
@@ -25,6 +26,9 @@ import { TenantContextMiddleware } from './shared/infrastructure/tenancy/tenant-
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     LoggerModule.forRootAsync({ inject: [ConfigService], useFactory: buildPinoConfig }),
+    // Only enforced where AuthThrottlerGuard is applied (the public auth
+    // endpoints). Per-route @Throttle overrides tighten it further.
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 15 * 60_000, limit: 10 }]),
     DatabaseModule,
     EventsModule,
     RealtimeModule,

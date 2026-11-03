@@ -8,6 +8,7 @@ import { TenantContext, UserRole } from '../../../../shared/infrastructure/tenan
 import { Task } from '../../domain/entities/task.entity';
 import { TASK_REPOSITORY, TaskRepository } from '../../domain/repositories/task.repository.port';
 import { AdvanceWorkflowService } from '../services/advance-workflow.service';
+import { TaskNotificationsService } from '../services/task-notifications.service';
 
 export interface CompleteTaskInput {
   taskId: string;
@@ -33,6 +34,7 @@ export class CompleteTaskUseCase implements UseCase<CompleteTaskInput, Task> {
     @Inject(TASK_REPOSITORY) private readonly tasks: TaskRepository,
     @Inject(EVENT_BUS) private readonly eventBus: EventBus,
     private readonly advanceWorkflow: AdvanceWorkflowService,
+    private readonly notifications: TaskNotificationsService,
   ) {}
 
   async execute(input: CompleteTaskInput): Promise<Task> {
@@ -63,14 +65,16 @@ export class CompleteTaskUseCase implements UseCase<CompleteTaskInput, Task> {
 
     if (task.requiresApproval) {
       task.submitForApproval({ byId: input.byId, byName: input.byName, historyId: randomUUID() });
-      return this.tasks.save(task);
+      const submitted = await this.tasks.save(task);
+      void this.notifications.submittedForApproval(submitted);
+      return submitted;
     }
 
     task.complete({ byId: input.byId, byName: input.byName, orgId, historyId: randomUUID() });
     const saved = await this.tasks.save(task);
 
     await this.eventBus.publishAll(task.pullDomainEvents());
-    await this.advanceWorkflow.advance(saved);
+    await this.advanceWorkflow.advanceOrLeaveForSweeper(saved);
 
     return saved;
   }

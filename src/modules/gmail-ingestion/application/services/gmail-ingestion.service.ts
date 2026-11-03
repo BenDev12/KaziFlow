@@ -3,8 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { gmail_v1, google } from 'googleapis';
+import { v5 as uuidv5 } from 'uuid';
 import { TenantContext } from '../../../../shared/infrastructure/tenancy/tenant-context';
 import { CreateTaskUseCase } from '../../../tasks/application/use-cases/create-task.use-case';
+import {
+  TASK_REPOSITORY,
+  TaskRepository,
+} from '../../../tasks/domain/repositories/task.repository.port';
 import {
   USER_REPOSITORY,
   UserRepository,
@@ -15,8 +20,11 @@ import {
   GMAIL_INTEGRATION_REPOSITORY,
   GmailIntegrationRepository,
 } from '../../domain/repositories/gmail-integration.repository.port';
-import { decryptToken } from '../../infrastructure/crypto/token-cipher';
+import { GmailTokenCipher } from '../../infrastructure/crypto/token-cipher';
 import { ProcessedGmailMessageDocument } from '../../infrastructure/schemas/processed-gmail-message.schema';
+
+/** Fixed namespace for deriving a task id from an org+message id (uuid v5). Never change it. */
+const GMAIL_TASK_ID_NAMESPACE = '6f1b6c1e-3c8a-4b9e-9a51-2f0f3d8e7c42';
 
 /**
  * Polls every org's connected Gmail inbox (not a webhook/Pub-Sub push —
@@ -37,6 +45,8 @@ export class GmailIngestionService implements OnModuleInit, OnModuleDestroy {
     @Inject(GMAIL_INTEGRATION_REPOSITORY) private readonly integrations: GmailIntegrationRepository,
     @InjectModel(ProcessedGmailMessageDocument.name)
     private readonly processedModel: Model<ProcessedGmailMessageDocument>,
+    private readonly tokenCipher: GmailTokenCipher,
+    @Inject(TASK_REPOSITORY) private readonly tasks: TaskRepository,
   ) {}
 
   onModuleInit(): void {
@@ -74,7 +84,6 @@ export class GmailIngestionService implements OnModuleInit, OnModuleDestroy {
   private async pollOne(integration: GmailIntegration): Promise<void> {
     const clientId = this.config.get<string>('GMAIL_CLIENT_ID')!;
     const clientSecret = this.config.get<string>('GMAIL_CLIENT_SECRET')!;
-    const jwtAccessSecret = this.config.get<string>('JWT_ACCESS_SECRET')!;
 
     const agent = await this.users.findById(integration.connectedByUserId);
     if (!agent) {
@@ -84,7 +93,17 @@ export class GmailIngestionService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const refreshToken = decryptToken(integration.refreshTokenEncrypted, jwtAccessSecret);
+    const { plainText: refreshToken, usedLegacyKey } = this.tokenCipher.decrypt(
+      integration.refreshTokenEncrypted,
+    );
+    if (usedLegacyKey) {
+      await this.integrations.upsert(
+        integration.withRefreshTokenEncrypted(this.tokenCipher.encrypt(refreshToken)),
+      );
+      this.logger.log(
+        `Re-encrypted Gmail token for org ${integration.orgId} under TOKEN_ENCRYPTION_KEY`,
+      );
+    }
     const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
     oauth2Client.setCredentials({ refresh_token: refreshToken });
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
@@ -154,6 +173,10 @@ export class GmailIngestionService implements OnModuleInit, OnModuleDestroy {
         : '',
     ].join('\n');
 
+    // Same email -> same task id, every time. If a previous poll created
+    // the task but crashed before recording the message as processed,
+    // this finds that task instead of creating a duplicate.
+    const taskId = uuidv5(dedupeId, GMAIL_TASK_ID_NAMESPACE);
     const task = await TenantContext.run(
       {
         orgId: integration.orgId,
@@ -162,8 +185,10 @@ export class GmailIngestionService implements OnModuleInit, OnModuleDestroy {
         email: agent.email,
         departmentId: agent.departmentId,
       },
-      () =>
+      async () =>
+        (await this.tasks.findById(taskId)) ??
         this.createTask.execute({
+          taskId,
           title: subject.slice(0, 200),
           description,
           agentId: agent.id,
@@ -175,7 +200,6 @@ export class GmailIngestionService implements OnModuleInit, OnModuleDestroy {
           source: 'email',
         }),
     );
-
     await this.processedModel.create({
       _id: dedupeId,
       orgId: integration.orgId,

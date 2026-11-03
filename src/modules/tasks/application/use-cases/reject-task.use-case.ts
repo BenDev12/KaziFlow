@@ -6,6 +6,7 @@ import { ForbiddenError, NotFoundError } from '../../../../shared/domain/errors/
 import { UserRole } from '../../../../shared/infrastructure/tenancy/tenant-context';
 import { Task } from '../../domain/entities/task.entity';
 import { TASK_REPOSITORY, TaskRepository } from '../../domain/repositories/task.repository.port';
+import { TaskNotificationsService } from '../services/task-notifications.service';
 
 export interface RejectTaskInput {
   taskId: string;
@@ -19,7 +20,10 @@ export interface RejectTaskInput {
 /** Sends a submitted task back to the assignee with a reason. Same authorization as approve — manager-of-department or org_admin only. */
 @Injectable()
 export class RejectTaskUseCase implements UseCase<RejectTaskInput, Task> {
-  constructor(@Inject(TASK_REPOSITORY) private readonly tasks: TaskRepository) {}
+  constructor(
+    @Inject(TASK_REPOSITORY) private readonly tasks: TaskRepository,
+    private readonly notifications: TaskNotificationsService,
+  ) {}
 
   async execute(input: RejectTaskInput): Promise<Task> {
     const task = await this.tasks.findById(input.taskId);
@@ -47,6 +51,8 @@ export class RejectTaskUseCase implements UseCase<RejectTaskInput, Task> {
       reason: input.reason,
       historyId: randomUUID(),
     });
-    return this.tasks.save(task);
+    const saved = await this.tasks.save(task);
+    void this.notifications.rejected(saved, input.reason.trim());
+    return saved;
   }
 }
